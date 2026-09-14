@@ -284,6 +284,13 @@
         </div>
 
         <div class="block">
+          <div class="blab">Importa da scansioni</div>
+          <div class="ftiny">Carica <b>notifiche.json</b> (o .csv) prodotto dal workflow Claude Code: compila da solo le schede qui sotto</div>
+          <input type="file" id="nImport" accept=".json,.csv,application/json,text/csv" style="width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--mut);padding:9px 11px;border-radius:9px;font-family:inherit;font-size:13px">
+          <div class="status" id="nImportStatus"></div>
+        </div>
+
+        <div class="block">
           <div class="blab">Atti da notificare</div>
           <div class="ftiny">Aggiungi una scheda per ogni atto notificato: testo e oggetto si adattano da soli al singolare o al plurale</div>
           <div id="nRighe"></div>
@@ -1164,7 +1171,7 @@ let nState = {
 const $=(id)=>document.getElementById(id);
 const nEls = {
   uff:$("nUfficio"), cWrap:$("nCustomWrap"), cArea:$("nCustomArea"), cServ:$("nCustomServ"), cProt:$("nCustomProt"),
-  righe:$("nRighe"), addBtn:$("nAddBtn"),
+  righe:$("nRighe"), addBtn:$("nAddBtn"), imp:$("nImport"), impStatus:$("nImportStatus"),
   protNum:$("nProtNum"), protData:$("nProtData"), seg:$("nSeg"), dataInput:$("nDataInput"), dataNotifica:$("nDataNotifica"),
   estNome:$("nEstNome"), estMatr:$("nEstMatr"), page:$("nPage"), genBtn:$("nGenBtn"), status:$("nStatus")
 };
@@ -1350,6 +1357,70 @@ nEls.uff.onchange=()=>{ nState.uff=nEls.uff.value; nRender(); };
 nEls.cArea.oninput=()=>{ nState.cArea=nEls.cArea.value; nBuildPreview(); };
 nEls.cServ.oninput=()=>{ nState.cServ=nEls.cServ.value; nBuildPreview(); };
 nEls.cProt.oninput=()=>{ nState.cProt=nEls.cProt.value; nBuildPreview(); };
+// Importazione dal workflow locale (JSON o CSV prodotto dalle scansioni)
+function nNormTitolo(v){
+  const s=(v||"").toString().trim().toLowerCase();
+  if(s.startsWith("sig.ra")||s.startsWith("sigra")||s==="sig.ra") return "sig.ra";
+  if(s.startsWith("soc")) return "societ\u00E0";
+  return "sig.";
+}
+function nParseImport(text, nome){
+  const out={righe:[], dataNotifica:""};
+  const t=text.trim();
+  if(t.startsWith("{")||t.startsWith("[")){
+    const j=JSON.parse(t);
+    const arr=Array.isArray(j)?j:(j.righe||j.notifiche||[]);
+    if(!Array.isArray(arr)) throw new Error("struttura non riconosciuta");
+    if(!Array.isArray(j) && j.dataNotifica) out.dataNotifica=j.dataNotifica;
+    arr.forEach(r=>{
+      out.righe.push({
+        atto:(r.atto||r.tipo_atto||"").toString().trim(),
+        titolo:nNormTitolo(r.titolo),
+        sogg:(r.sogg||r.soggetto||r.cognome||"").toString().trim(),
+        attiv:(r.attiv||r.attivita||r.denominazione||"").toString().trim(),
+        indir:(r.indir||r.indirizzo||r.sede||"").toString().trim()
+      });
+      if(!out.dataNotifica && r.data_notifica) out.dataNotifica=r.data_notifica;
+    });
+  } else {
+    const lines=t.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+    if(!lines.length) throw new Error("file vuoto");
+    const sep=(lines[0].match(/;/g)||[]).length>=(lines[0].match(/,/g)||[]).length?";":",";
+    const tb=lines.map(l=>l.split(sep).map(x=>x.trim().replace(/^"|"$/g,"")));
+    const h=tb[0].map(x=>x.toLowerCase());
+    const idx={ atto:h.findIndex(x=>/atto/.test(x)), titolo:h.findIndex(x=>/titolo/.test(x)),
+      sogg:h.findIndex(x=>/sogg|cognome|nominativ/.test(x)), attiv:h.findIndex(x=>/attivit|denominaz/.test(x)),
+      indir:h.findIndex(x=>/indirizz|sede|ubicaz/.test(x)), dataN:h.findIndex(x=>/data.*notif/.test(x)) };
+    const hasHeader = idx.sogg>=0 || idx.atto>=0;
+    const start=hasHeader?1:0;
+    for(let i=start;i<tb.length;i++){
+      const r=tb[i]; if(r.length<2) continue;
+      const g=(k)=>(k>=0&&k<r.length)?r[k]:"";
+      out.righe.push({ atto:hasHeader?g(idx.atto):r[0], titolo:nNormTitolo(hasHeader?g(idx.titolo):r[1]),
+        sogg:hasHeader?g(idx.sogg):r[2], attiv:hasHeader?g(idx.attiv):r[3], indir:hasHeader?g(idx.indir):r[4] });
+      if(hasHeader && !out.dataNotifica && g(idx.dataN)) out.dataNotifica=g(idx.dataN);
+    }
+  }
+  out.righe=out.righe.filter(r=>r.sogg||r.attiv||r.atto);
+  if(!out.righe.length) throw new Error("nessun atto valido trovato");
+  return out;
+}
+nEls.imp.onchange=async()=>{
+  const f=nEls.imp.files[0];
+  if(!f) return;
+  try{
+    const text=await f.text();
+    const d=nParseImport(text, f.name);
+    nState.righe=d.righe;
+    if(d.dataNotifica && /^\d{4}-\d{2}-\d{2}$/.test(d.dataNotifica)) nState.dataNotifica=d.dataNotifica;
+    nRender();
+    nEls.impStatus.style.color='var(--ok)';
+    nEls.impStatus.textContent='\u2713 Importati n. '+d.righe.length+' att'+(d.righe.length===1?'o':'i')+' \u2014 controlla le schede prima di generare.';
+  }catch(e){
+    nEls.impStatus.style.color='#e06a6a';
+    nEls.impStatus.textContent='Errore nel file: '+e.message;
+  }
+};
 nEls.addBtn.onclick=()=>{ const last=nState.righe[nState.righe.length-1]||{}; nState.righe.push({atto:last.atto||"avvio del procedimento", titolo:"sig.", sogg:"", attiv:"", indir:""}); nRender(); };
 nEls.protNum.oninput=()=>{ nState.protNum=nEls.protNum.value; nBuildPreview(); };
 nEls.protData.onchange=()=>{ nState.protData=nEls.protData.value; nBuildPreview(); };
