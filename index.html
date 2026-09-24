@@ -302,6 +302,13 @@
             <option value="verbale di accertamento e contestazione"></option>
             <option value="provvedimento di sospensione dell'attività"></option>
           </datalist>
+          <datalist id="esitiList">
+            <option value="consegnata a mani"></option>
+            <option value="consegnata a persona di famiglia"></option>
+            <option value="consegnata al legale rappresentante"></option>
+            <option value="rifiuto di ricevere"></option>
+            <option value="destinatario assente"></option>
+          </datalist>
           <button class="cleardate" id="nAddBtn">+ Aggiungi atto notificato</button>
         </div>
 
@@ -326,7 +333,7 @@
 
         <div class="block">
           <div class="blab">Data della notifica</div>
-          <div class="ftiny">Se coincide con la data del documento (o è vuota) → "in data odierna"; altrimenti compare la data indicata</div>
+          <div class="ftiny">Vale per le schede che non hanno una data propria. Se coincide con la data del documento (o è vuota) → "in data odierna"</div>
           <input type="date" id="nDataNotifica">
           <button class="cleardate" id="nClearDataNotifica">In data odierna</button>
         </div>
@@ -341,6 +348,7 @@
 
         <div class="actions">
           <button class="gen" id="nGenBtn">⬇ Genera Word (.docx)</button>
+          <button class="cleardate" id="nGenSplitBtn">⬇ Un Word per ogni data di notifica</button>
           <div class="status" id="nStatus"></div>
         </div>
       </div>
@@ -1164,7 +1172,7 @@ const UFFICI = {
 
 let nState = {
   uff:"suap", cArea:"", cServ:"", cProt:"",
-  righe:[{atto:"avvio del procedimento", titolo:"sig.", sogg:"", attiv:"", indir:""}],
+  righe:[{atto:"avvio del procedimento", titolo:"sig.", sogg:"", attiv:"", indir:"", nAtto:"", dataAtto:"", dataN:"", esito:""}],
   protNum:"", protData:"", resp:"autore", data:"", dataNotifica:"", estNome:"Armando Ferrara", estMatr:""
 };
 
@@ -1185,8 +1193,28 @@ function nProtDoc(){ const num=nState.protNum.trim()||"___________"; let date="_
 function titoloFrase(t){ return t==="sig." ? "del sig. " : (t==="sig.ra" ? "della sig.ra " : "della societ\u00E0 "); }
 function nUno(){ return nState.righe.length===1; }
 function nAttiSet(){ return [...new Set(nState.righe.map(r=>r.atto.trim()).filter(Boolean))]; }
+function nGG(iso){ if(!iso||!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return ""; const [y,m,d]=iso.split("-"); return d+"/"+m+"/"+y; }
+function nRigaData(r){ return ((r.dataN||"").trim()) || nState.dataNotifica || ""; }
+function nDateSet(){ return [...new Set(nState.righe.map(r=>nRigaData(r)).filter(Boolean))]; }
+function nSenzaData(){ return nState.righe.filter(r=>!nRigaData(r)).length; }
+function nDataUnica(){ return nDateSet().length<=1 && nSenzaData()===0; }
 function nRigaFrase(r){
-  return "dell\u2019atto di "+(r.atto.trim()||"\u2026")+" nei confronti "+titoloFrase(r.titolo)+(r.sogg.trim()||"\u2026")+", titolare dell\u2019attivit\u00E0 denominata \u201C"+(r.attiv.trim()||"\u2026")+"\u201D ubicata in "+(r.indir.trim()||"\u2026");
+  let s="dell\u2019atto di "+(r.atto.trim()||"\u2026");
+  const num=((r.nAtto||"").trim()), da=nGG(((r.dataAtto||"").trim()));
+  if(num) s+=" n. "+num;
+  if(da) s+=" del "+da;
+  s+=" nei confronti "+titoloFrase(r.titolo)+(r.sogg.trim()||"\u2026");
+  const att=((r.attiv||"").trim());
+  s+= att ? ", titolare dell\u2019attivit\u00E0 denominata \u201C"+att+"\u201D" : ", titolare dell\u2019attivit\u00E0";
+  s+=" ubicata in "+(r.indir.trim()||"\u2026");
+  return s;
+}
+function nRigaCoda(r){
+  const parti=[];
+  if(!nDataUnica()){ const d=nGG(nRigaData(r)); parti.push(d?"notificato il "+d:"data di notifica da indicare"); }
+  const es=((r.esito||"").trim());
+  if(es) parti.push("esito: "+es);
+  return parti.length?" ("+parti.join(" \u2014 ")+")":"";
 }
 function nOggetto(){
   if(nUno()){
@@ -1199,15 +1227,19 @@ function nOggetto(){
   return "Trasmissione relate di notifica - n. "+n+" atti";
 }
 function nDataNotificaFrase(){
-  if(!nState.dataNotifica || nState.dataNotifica===nState.data) return "in data odierna";
-  const [y,m,d]=nState.dataNotifica.split("-");
-  return "in data "+d+"/"+m+"/"+y;
+  if(!nDataUnica()) return "nelle date di seguito indicate";
+  const iso=nDateSet()[0]||"";
+  if(!iso || iso===nState.data) return "in data odierna";
+  return "in data "+nGG(iso);
 }
 function nCorpo(){
-  if(nUno()) return "Si trasmette la relata di notifica "+nRigaFrase(nState.righe[0])+", effettuata da personale di questo Ufficio "+nDataNotificaFrase()+" secondo le modalit\u00E0 previste dalla normativa vigente.";
+  if(nUno()){
+    const r0=nState.righe[0], es0=((r0.esito||"").trim());
+    return "Si trasmette la relata di notifica "+nRigaFrase(r0)+", effettuata da personale di questo Ufficio "+nDataNotificaFrase()+" secondo le modalit\u00E0 previste dalla normativa vigente"+(es0?" (esito: "+es0+")":"")+".";
+  }
   return "Si trasmettono le relate di notifica degli atti di seguito indicati, effettuate da personale di questo Ufficio "+nDataNotificaFrase()+" secondo le modalit\u00E0 previste dalla normativa vigente:";
 }
-function nElenco(){ return nUno()?[]:nState.righe.map(r=>"\u2022 relata di notifica "+nRigaFrase(r)+";"); }
+function nElenco(){ return nUno()?[]:nState.righe.map(r=>"\u2022 relata di notifica "+nRigaFrase(r)+nRigaCoda(r)+";"); }
 function nEstLine(){
   const n=nState.estNome.trim()||"_______________";
   const m=nState.estMatr.trim();
@@ -1219,15 +1251,24 @@ function nBuildRighe(){
   nEls.righe.innerHTML='';
   nState.righe.forEach((r,i)=>{
     const w=document.createElement('div');
-    w.style.cssText="border:1px solid var(--line);border-radius:9px;padding:12px;margin-bottom:10px";
+    const manca=[];
+    if(!r.sogg.trim()) manca.push("soggetto");
+    if(!((r.attiv||"").trim())) manca.push("insegna");
+    if(!r.indir.trim()) manca.push("indirizzo");
+    if(!nRigaData(r)) manca.push("data notifica");
+    w.style.cssText="border:1px solid "+(manca.length?"var(--warn)":"var(--line)")+";border-radius:9px;padding:12px;margin-bottom:10px";
     const sel=(v)=>r.titolo===v?' selected':'';
     w.innerHTML=`
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <div class="ftiny" style="margin:0;color:var(--accent);font-weight:600">Atto ${i+1}</div>
+        <div class="ftiny" style="margin:0;color:var(--accent);font-weight:600">Atto ${i+1}${manca.length?` <span style="color:var(--warn);font-weight:500">· manca ${manca.join(", ")}</span>`:''}</div>
         ${nState.righe.length>1?`<span class="n-del" data-i="${i}" style="cursor:pointer;color:var(--mut);font-weight:700">&#10005;</span>`:''}
       </div>
       <div class="ftiny">Tipo di atto</div>
       <input type="text" class="n-atto" data-i="${i}" list="attiList" value="${r.atto.replace(/"/g,'&quot;')}" placeholder="es. avvio del procedimento">
+      <div class="row" style="margin-top:8px">
+        <div class="f-grow"><div class="ftiny">Numero atto (facolt.)</div><input type="text" class="n-natto" data-i="${i}" value="${(r.nAtto||'').replace(/"/g,'&quot;')}" placeholder="es. 294"></div>
+        <div class="f-matr"><div class="ftiny">del</div><input type="date" class="n-dataatto" data-i="${i}" value="${r.dataAtto||''}" style="padding:10px 8px"></div>
+      </div>
       <div class="row" style="margin-top:8px">
         <div class="f-matr" style="flex:0 0 96px"><div class="ftiny">Titolo</div>
           <select class="n-titolo" data-i="${i}"><option value="sig."${sel("sig.")}>Sig.</option><option value="sig.ra"${sel("sig.ra")}>Sig.ra</option><option value="societ&agrave;"${sel("societ\u00E0")}>Societ&agrave;</option></select>
@@ -1236,6 +1277,10 @@ function nBuildRighe(){
       </div>
       <div style="margin-top:8px"><div class="ftiny">Denominazione attivit&agrave;</div><input type="text" class="n-attiv" data-i="${i}" value="${r.attiv.replace(/"/g,'&quot;')}" placeholder="es. CAFFETTERIA FUGA"></div>
       <div style="margin-top:8px"><div class="ftiny">Ubicazione / indirizzo</div><input type="text" class="n-indir" data-i="${i}" value="${r.indir.replace(/"/g,'&quot;')}" placeholder="es. Piazza Carlo III nn. 52-52A"></div>
+      <div class="row" style="margin-top:8px">
+        <div class="f-matr" style="flex:0 0 160px"><div class="ftiny">Data della notifica</div><input type="date" class="n-datan" data-i="${i}" value="${r.dataN||''}" style="padding:10px 8px"></div>
+        <div class="f-grow"><div class="ftiny">Esito (facolt.)</div><input type="text" class="n-esito" data-i="${i}" list="esitiList" value="${(r.esito||'').replace(/"/g,'&quot;')}" placeholder="es. consegnata a mani"></div>
+      </div>
     `;
     nEls.righe.appendChild(w);
   });
@@ -1244,6 +1289,10 @@ function nBuildRighe(){
   nEls.righe.querySelectorAll('.n-attiv').forEach(el=>el.oninput=()=>{ nState.righe[+el.dataset.i].attiv=el.value; nBuildPreview(); });
   nEls.righe.querySelectorAll('.n-indir').forEach(el=>el.oninput=()=>{ nState.righe[+el.dataset.i].indir=el.value; nBuildPreview(); });
   nEls.righe.querySelectorAll('.n-titolo').forEach(el=>el.onchange=()=>{ nState.righe[+el.dataset.i].titolo=el.value; nBuildPreview(); });
+  nEls.righe.querySelectorAll('.n-natto').forEach(el=>el.oninput=()=>{ nState.righe[+el.dataset.i].nAtto=el.value; nBuildPreview(); });
+  nEls.righe.querySelectorAll('.n-dataatto').forEach(el=>el.onchange=()=>{ nState.righe[+el.dataset.i].dataAtto=el.value; nBuildPreview(); });
+  nEls.righe.querySelectorAll('.n-datan').forEach(el=>el.onchange=()=>{ nState.righe[+el.dataset.i].dataN=el.value; nRender(); });
+  nEls.righe.querySelectorAll('.n-esito').forEach(el=>el.oninput=()=>{ nState.righe[+el.dataset.i].esito=el.value; nBuildPreview(); });
   nEls.righe.querySelectorAll('.n-del').forEach(el=>el.onclick=()=>{ nState.righe.splice(+el.dataset.i,1); nRender(); });
 }
 function nBuildSeg(){
@@ -1372,15 +1421,19 @@ function nParseImport(text, nome){
     const arr=Array.isArray(j)?j:(j.righe||j.notifiche||[]);
     if(!Array.isArray(arr)) throw new Error("struttura non riconosciuta");
     if(!Array.isArray(j) && j.dataNotifica) out.dataNotifica=j.dataNotifica;
+    const iso=(v)=>{ const x=(v||"").toString().trim(); return /^\d{4}-\d{2}-\d{2}$/.test(x)?x:""; };
     arr.forEach(r=>{
       out.righe.push({
         atto:(r.atto||r.tipo_atto||"").toString().trim(),
         titolo:nNormTitolo(r.titolo),
         sogg:(r.sogg||r.soggetto||r.cognome||"").toString().trim(),
         attiv:(r.attiv||r.attivita||r.denominazione||"").toString().trim(),
-        indir:(r.indir||r.indirizzo||r.sede||"").toString().trim()
+        indir:(r.indir||r.indirizzo||r.sede||"").toString().trim(),
+        nAtto:(r.n_atto||r.numero_atto||r.num_atto||"").toString().trim(),
+        dataAtto:iso(r.data_atto||r.dataAtto),
+        dataN:iso(r.data_notifica||r.dataNotifica),
+        esito:(r.esito||"").toString().trim()
       });
-      if(!out.dataNotifica && r.data_notifica) out.dataNotifica=r.data_notifica;
     });
   } else {
     const lines=t.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
@@ -1390,15 +1443,17 @@ function nParseImport(text, nome){
     const h=tb[0].map(x=>x.toLowerCase());
     const idx={ atto:h.findIndex(x=>/atto/.test(x)), titolo:h.findIndex(x=>/titolo/.test(x)),
       sogg:h.findIndex(x=>/sogg|cognome|nominativ/.test(x)), attiv:h.findIndex(x=>/attivit|denominaz/.test(x)),
-      indir:h.findIndex(x=>/indirizz|sede|ubicaz/.test(x)), dataN:h.findIndex(x=>/data.*notif/.test(x)) };
+      indir:h.findIndex(x=>/indirizz|sede|ubicaz/.test(x)), dataN:h.findIndex(x=>/data.*notif/.test(x)),
+      natto:h.findIndex(x=>/n_atto|numero|n\.\s*atto/.test(x)), esito:h.findIndex(x=>/esito/.test(x)) };
     const hasHeader = idx.sogg>=0 || idx.atto>=0;
     const start=hasHeader?1:0;
     for(let i=start;i<tb.length;i++){
       const r=tb[i]; if(r.length<2) continue;
       const g=(k)=>(k>=0&&k<r.length)?r[k]:"";
+      const dN=hasHeader?g(idx.dataN):"";
       out.righe.push({ atto:hasHeader?g(idx.atto):r[0], titolo:nNormTitolo(hasHeader?g(idx.titolo):r[1]),
-        sogg:hasHeader?g(idx.sogg):r[2], attiv:hasHeader?g(idx.attiv):r[3], indir:hasHeader?g(idx.indir):r[4] });
-      if(hasHeader && !out.dataNotifica && g(idx.dataN)) out.dataNotifica=g(idx.dataN);
+        sogg:hasHeader?g(idx.sogg):r[2], attiv:hasHeader?g(idx.attiv):r[3], indir:hasHeader?g(idx.indir):r[4],
+        nAtto:hasHeader?g(idx.natto):"", dataAtto:"", dataN:/^\d{4}-\d{2}-\d{2}$/.test(dN)?dN:"", esito:hasHeader?g(idx.esito):"" });
     }
   }
   out.righe=out.righe.filter(r=>r.sogg||r.attiv||r.atto);
@@ -1414,14 +1469,24 @@ nEls.imp.onchange=async()=>{
     nState.righe=d.righe;
     if(d.dataNotifica && /^\d{4}-\d{2}-\d{2}$/.test(d.dataNotifica)) nState.dataNotifica=d.dataNotifica;
     nRender();
-    nEls.impStatus.style.color='var(--ok)';
-    nEls.impStatus.textContent='\u2713 Importati n. '+d.righe.length+' att'+(d.righe.length===1?'o':'i')+' \u2014 controlla le schede prima di generare.';
+    const tot=d.righe.length;
+    const sd=d.righe.filter(r=>!(r.dataN||nState.dataNotifica)).length;
+    const si=d.righe.filter(r=>!r.attiv).length;
+    const ss=d.righe.filter(r=>!r.sogg).length;
+    const buchi=[];
+    if(sd) buchi.push(sd+' senza data');
+    if(si) buchi.push(si+' senza insegna');
+    if(ss) buchi.push(ss+' senza soggetto');
+    const date=[...new Set(d.righe.map(r=>r.dataN).filter(Boolean))];
+    if(date.length>1) buchi.push('date diverse ('+date.length+')');
+    nEls.impStatus.style.color = buchi.length ? 'var(--warn)' : 'var(--ok)';
+    nEls.impStatus.textContent='\u2713 Importati n. '+tot+' att'+(tot===1?'o':'i')+(buchi.length?' \u2014 '+buchi.join(', ')+': controlla le schede in giallo.':' \u2014 controlla le schede prima di generare.');
   }catch(e){
     nEls.impStatus.style.color='#e06a6a';
     nEls.impStatus.textContent='Errore nel file: '+e.message;
   }
 };
-nEls.addBtn.onclick=()=>{ const last=nState.righe[nState.righe.length-1]||{}; nState.righe.push({atto:last.atto||"avvio del procedimento", titolo:"sig.", sogg:"", attiv:"", indir:""}); nRender(); };
+nEls.addBtn.onclick=()=>{ const last=nState.righe[nState.righe.length-1]||{}; nState.righe.push({atto:last.atto||"avvio del procedimento", titolo:"sig.", sogg:"", attiv:"", indir:"", nAtto:"", dataAtto:last.dataAtto||"", dataN:last.dataN||"", esito:last.esito||""}); nRender(); };
 nEls.protNum.oninput=()=>{ nState.protNum=nEls.protNum.value; nBuildPreview(); };
 nEls.protData.onchange=()=>{ nState.protData=nEls.protData.value; nBuildPreview(); };
 nEls.dataInput.onchange=()=>{ nState.data=nEls.dataInput.value; nBuildPreview(); };
@@ -1430,6 +1495,33 @@ $("nClearDataNotifica").onclick=()=>{ nState.dataNotifica=""; nRender(); };
 $("nClearDate").onclick=()=>{ nState.data=""; nRender(); };
 nEls.estNome.oninput=()=>{ nState.estNome=nEls.estNome.value; nBuildPreview(); };
 nEls.estMatr.oninput=()=>{ nState.estMatr=nEls.estMatr.value; nBuildPreview(); };
+async function nScaricaZip(zip, nome){
+  const blob=await zip.generateAsync({type:"blob",mimeType:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=nome;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+function nGruppiPerData(){
+  const g=new Map();
+  nState.righe.forEach(r=>{ const k=nRigaData(r)||"senza-data"; if(!g.has(k)) g.set(k,[]); g.get(k).push(r); });
+  return [...g.entries()].sort((a,b)=>a[0]<b[0]?-1:1);
+}
+$("nGenSplitBtn").onclick=async()=>{
+  const gruppi=nGruppiPerData();
+  if(gruppi.length<2){ nEls.status.style.color='var(--warn)'; nEls.status.textContent='Le relate hanno tutte la stessa data: basta il pulsante qui sopra.'; return; }
+  const righeOrig=nState.righe, dataOrig=nState.dataNotifica;
+  try{
+    nEls.status.style.color='var(--mut)'; nEls.status.textContent='Genero '+gruppi.length+' lettere, una per data.';
+    for(const [k,righe] of gruppi){
+      nState.righe=righe; nState.dataNotifica=(k==="senza-data")?"":k;
+      await nScaricaZip(buildZipNotifica(), "Notifica_"+(k==="senza-data"?"senza_data":k)+"_"+righe.length+"_atti.docx");
+      await new Promise(res=>setTimeout(res,800));
+    }
+    nEls.status.style.color='var(--ok)'; nEls.status.textContent='\u2713 Generate '+gruppi.length+' lettere. Se il browser chiede il permesso per pi\u00F9 download, consentilo.';
+  }catch(e){ nEls.status.style.color='#e06a6a'; nEls.status.textContent='Errore: '+e.message; }
+  finally{ nState.righe=righeOrig; nState.dataNotifica=dataOrig; nRender(); }
+};
 nEls.genBtn.onclick=async()=>{
   try{
     nEls.status.style.color='var(--mut)'; nEls.status.textContent='Generazione in corso…';
