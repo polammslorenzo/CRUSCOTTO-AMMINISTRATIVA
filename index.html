@@ -151,6 +151,7 @@
     <button class="tab" id="tabBtnTrasm">Trasmissioni · Lettere</button>
     <button class="tab" id="tabBtnCom">Comunicati · Controlli</button>
     <button class="tab" id="tabBtnRel">Relazioni · Generiche</button>
+    <button class="tab" id="tabBtnAria">O.D. 1766 · Qualità dell'aria</button>
   </div>
 
   <div id="tab-verbali" class="tabpane">
@@ -830,6 +831,79 @@
       </div>
     </div>
   </div><!-- /tab-rel -->
+
+  <div id="tab-aria" class="tabpane" hidden>
+    <p class="sub">Trasmissione quindicinale delle risultanze dei controlli sulle limitazioni alla circolazione — O.D. 1766 del 15/10/2026 (nota PG/2026/1106982), vigenza 19/10/2026 – 31/03/2027 — dicitura fissa; cambiano solo periodo, controlli e verbali.</p>
+    <div class="grid">
+      <!-- CONTROLS ARIA -->
+      <div class="card">
+        <h2>Dati trasmissione</h2>
+
+        <div class="block" style="margin-top:0">
+          <div class="blab">Protocollo</div>
+          <div class="row">
+            <div class="f-grow"><div class="ftiny">Prot. n.</div><input type="text" id="aProtNum" placeholder="es. PG/2026/000000"></div>
+            <div class="f-matr"><div class="ftiny">del</div><input type="date" id="aProtData" style="padding:10px 8px"></div>
+          </div>
+        </div>
+
+        <div class="block">
+          <div class="blab">Periodo di riferimento (quindicina)</div>
+          <div class="row">
+            <div class="f-grow"><div class="ftiny">dal</div><input type="date" id="aDal" style="padding:10px 8px"></div>
+            <div class="f-grow"><div class="ftiny">al</div><input type="date" id="aAl" style="padding:10px 8px"></div>
+          </div>
+          <button class="cleardate" id="aNext">→ Passa alla quindicina successiva</button>
+          <div class="ftiny" id="aPerHint" style="margin-top:8px;color:var(--ok)"></div>
+        </div>
+
+        <div class="block">
+          <div class="blab">Codice di riferimento</div>
+          <div class="ftiny">Rif Cod (compare nell'oggetto)</div>
+          <input type="text" id="aCod" placeholder="es. R11250D784">
+        </div>
+
+        <div class="block">
+          <div class="blab">Risultanze</div>
+          <div class="row">
+            <div class="f-grow"><div class="ftiny">Controlli eseguiti</div><input type="number" id="aTot" min="0" placeholder="es. 107"></div>
+            <div class="f-grow"><div class="ftiny">Verbali elevati</div><input type="number" id="aVerb" min="0" placeholder="es. 8"></div>
+          </div>
+          <div class="ftiny" id="aHint" style="margin-top:8px;color:var(--ok)"></div>
+        </div>
+
+        <div class="block">
+          <div class="blab">Firmatario</div>
+          <div class="seg" id="aSeg"></div>
+        </div>
+
+        <div class="block">
+          <div class="blab">Data del documento</div>
+          <input type="date" id="aDataInput">
+          <button class="cleardate" id="aClearDate">Lascia in bianco («Napoli, data del protocollo»)</button>
+        </div>
+
+        <div class="block">
+          <div class="blab">Estensore</div>
+          <div class="row">
+            <div class="f-grow"><div class="ftiny">Nome (A.C.)</div><input type="text" id="aEstNome" placeholder="Nome Cognome"></div>
+            <div class="f-matr"><div class="ftiny">Matricola (facolt.)</div><input type="text" id="aEstMatr" placeholder="0000"></div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="gen" id="aGenBtn">⬇ Genera Word (.docx)</button>
+          <div class="status" id="aStatus"></div>
+        </div>
+      </div>
+
+      <!-- PREVIEW ARIA -->
+      <div class="card">
+        <h2>Anteprima</h2>
+        <div class="preview-wrap"><div class="page" id="aPage"></div></div>
+      </div>
+    </div>
+  </div><!-- /tab-aria -->
 </div>
 
 <script>
@@ -2944,9 +3018,200 @@ gEls.genBtn.onclick=async()=>{
   }catch(e){ gEls.status.style.color='#e06a6a'; gEls.status.textContent='Errore: '+e.message; }
 };
 
+// =====================================================================
+// ================== O.D. 1766/2026 · QUALITA' DELL'ARIA ==============
+// =====================================================================
+// Trasmissione quindicinale risultanze (nota PG/2026/1106982 del 15/10/2026),
+// sul modello della trasmissione O.D. 784/2025 dell'anno precedente.
+// Destinatari: gli stessi del report targhe straniere (REPORT_DEST).
+const ARIA_OD = "O.D. n. 1766 del 15/10/2026";
+const ARIA_NOTA = "PG/2026/1106982 del 15/10/2026";
+const ARIA_INIZIO = "2026-10-19", ARIA_FINE = "2027-03-31";
+const MESI_IT = ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
+
+let aState = { protNum:"", protData:"", dal:"2026-10-19", al:"2026-10-30", cod:"", tot:"", verb:"", resp:"autore", data:"", estNome:"Armando Ferrara", estMatr:"" };
+
+const aEls = {
+  protNum:$("aProtNum"), protData:$("aProtData"), dal:$("aDal"), al:$("aAl"), perHint:$("aPerHint"),
+  cod:$("aCod"), tot:$("aTot"), verb:$("aVerb"), hint:$("aHint"), seg:$("aSeg"),
+  dataInput:$("aDataInput"), estNome:$("aEstNome"), estMatr:$("aEstMatr"),
+  page:$("aPage"), genBtn:$("aGenBtn"), status:$("aStatus")
+};
+
+// date "YYYY-MM-DD" gestite in UTC per non subire il fuso orario
+function aParse(v){ if(!v) return null; const [y,m,d]=v.split("-").map(Number); return new Date(Date.UTC(y,m-1,d)); }
+function aIso(dt){ return dt.toISOString().slice(0,10); }
+function aAdd(dt,n){ return new Date(dt.getTime()+n*86400000); }
+function aFeriale(dt){ const g=dt.getUTCDay(); return g!==0 && g!==6; }
+function aGiorno(dt){ const g=dt.getUTCDate(); return g===1?"1°":String(g); }
+function aPeriodo(){
+  const a=aParse(aState.dal), b=aParse(aState.al);
+  if(!a && !b) return "dal … al …";
+  if(!a) return "dal … al "+aGiorno(b)+" "+MESI_IT[b.getUTCMonth()]+" "+b.getUTCFullYear();
+  if(!b) return "dal "+aGiorno(a)+" "+MESI_IT[a.getUTCMonth()]+" "+a.getUTCFullYear()+" al …";
+  const ya=a.getUTCFullYear(), yb=b.getUTCFullYear(), ma=a.getUTCMonth(), mb=b.getUTCMonth();
+  if(ya!==yb) return "dal "+aGiorno(a)+" "+MESI_IT[ma]+" "+ya+" al "+aGiorno(b)+" "+MESI_IT[mb]+" "+yb;
+  if(ma!==mb) return "dal "+aGiorno(a)+" "+MESI_IT[ma]+" al "+aGiorno(b)+" "+MESI_IT[mb]+" "+yb;
+  return "dal "+aGiorno(a)+" al "+aGiorno(b)+" "+MESI_IT[mb]+" "+yb;
+}
+function aPeriodoOgg(){ const p=aPeriodo(); return "Periodo "+p; }
+function aNextQuindicina(){
+  const b=aParse(aState.al)||aParse(ARIA_INIZIO);
+  let a=aAdd(b,1); while(!aFeriale(a)) a=aAdd(a,1);
+  let e=aAdd(a,13); while(!aFeriale(e)) e=aAdd(e,-1);
+  const fine=aParse(ARIA_FINE); if(e>fine) e=fine;
+  aState.dal=aIso(a); aState.al=aIso(e);
+}
+function aPerHintTxt(){
+  const a=aParse(aState.dal), b=aParse(aState.al);
+  if(!a||!b) return {t:"",warn:false};
+  if(b<a) return {t:"⚠ La data «al» precede la data «dal»",warn:true};
+  if(a<aParse(ARIA_INIZIO)||b>aParse(ARIA_FINE)) return {t:"⚠ Periodo fuori vigenza dell’ordinanza (19/10/2026 – 31/03/2027)",warn:true};
+  let n=0; for(let d=a; d<=b; d=aAdd(d,1)) if(aFeriale(d)) n++;
+  return {t:"Giorni feriali nel periodo: "+n,warn:false};
+}
+function aProtDoc(){ const num=aState.protNum.trim()||"___________"; let date="____ / ____ / ________"; if(aState.protData){const [y,m,d]=aState.protData.split("-"); date=`${d}/${m}/${y}`;} return {num,date}; }
+function aDataDoc(){ if(!aState.data) return "Napoli, data del protocollo"; const [y,m,d]=aState.data.split("-"); return `Napoli, lì ${d}/${m}/${y}`; }
+function aNum(v){ return String(v).trim()===""?"…":String(v).trim(); }
+function aUno(v){ return String(v).trim()==="1"; }
+function aCodTxt(){ return aState.cod.trim()||"____"; }
+function aOggetto(){ return "Trasmissione risultanze attività di controllo – "+ARIA_OD+" – "+aPeriodoOgg()+" – RIF COD "+aCodTxt(); }
+function aIntro(){
+  return "In riferimento all’Ordinanza Dirigenziale n. 616 del 13 ottobre 2026 ("+ARIA_OD+"), emanata ai sensi della Delibera di Giunta Comunale n. 193 del 18 giugno 2020, e alla nota "+ARIA_NOTA+" concernente l’obbligo di comunicazione quindicinale degli esiti dei controlli effettuati, si trasmettono le risultanze delle attività di vigilanza svolte da questa Unità Operativa nel periodo "+aPeriodo()+".";
+}
+function aIntro2(){ return "Nel suddetto arco temporale, nei giorni feriali e nella fascia oraria compresa tra le ore 08:30 e le ore 18:30, sono stati eseguiti complessivamente:"; }
+function aBullets(){
+  return [
+    "n. "+aNum(aState.tot)+(aUno(aState.tot)?" controllo;":" controlli;"),
+    "n. "+aNum(aState.verb)+(aUno(aState.verb)?" verbale elevato per violazione":" verbali elevati per violazioni")+" delle disposizioni di cui alla citata Ordinanza Dirigenziale."
+  ];
+}
+function aEstLine(){ const n=aState.estNome.trim()||"_______________"; const m=aState.estMatr.trim(); return "Estensore: A.C. "+n+(m?"  ·  matr. "+m:""); }
+
+// ---------- preview ----------
+function aBuildSeg(){
+  aEls.seg.innerHTML='';
+  Object.keys(RESP_MENU).forEach(k=>{
+    const r=RESP_MENU[k], on=aState.resp===k;
+    const o=document.createElement('div');
+    o.className='opt2'+(on?' on':'');
+    o.innerHTML=`<div class="radio"></div><div class="lab2">${r.titolo}<small>${r.ruolo}</small></div>`;
+    o.onclick=()=>{ aState.resp=k; aRender(); };
+    aEls.seg.appendChild(o);
+  });
+}
+function aBuildPreview(){
+  const p=aProtDoc(), h=(s)=>esc(String(s));
+  aEls.page.innerHTML=`
+    <div class="pg-head">
+      <img class="logoimg" src="data:image/png;base64,${IMG1_B64}" alt="Stemma">
+      <div class="banner">
+        <div class="t1">C O M U N E&nbsp; D I&nbsp; N A P O L I&nbsp; · &nbsp;P O L I Z I A&nbsp; M U N I C I P A L E</div>
+        <div class="t2">Area Sicurezza</div>
+        <div class="t3">Servizio Coordinamento Strategico Operativo</div>
+        <div class="t4">Unità Operativa San Lorenzo · Ufficio di Polizia Amministrativa</div>
+      </div>
+      <img class="logoimg" src="data:image/png;base64,${IMG2_B64}" alt="Logo P.M.">
+    </div>
+    <hr class="rule">
+    <div class="proto" style="margin-top:12px"><div class="bar"></div><div class="pcontent">
+      <div>${p.num==="___________"?'<b>Prot. n.</b> <span class="muted">___________</span>':'<b>Prot. n.</b> <b>'+h(p.num)+'</b>'} &nbsp;&nbsp;<b>del</b> ${p.date.includes("_")?'<span class="muted">__/__/____</span>':'<b>'+p.date+'</b>'}</div>
+    </div></div>
+    <div class="data" style="text-align:right">${aDataDoc()}</div>
+    <div class="dest" style="margin-top:14px">${rDestHtml()}</div>
+    <div class="ogg-label" style="margin-top:16px">O&nbsp;G&nbsp;G&nbsp;E&nbsp;T&nbsp;T&nbsp;O</div>
+    <hr class="ogg-rule">
+    <div class="ogg-title">${h(aOggetto())}</div>
+    <div class="body-p">${h(aIntro())}</div>
+    <div class="body-p" style="margin-top:8px">${h(aIntro2())}</div>
+    ${aBullets().map(t=>`<div class="body-line" style="margin-top:6px;margin-left:26px">•&nbsp;&nbsp;${h(t)}</div>`).join('')}
+    <div class="body-line" style="margin-top:12px">Si resta a disposizione per eventuali ulteriori adempimenti o chiarimenti.</div>
+    <div class="body-line">Cordialmente</div>
+    <div class="sig-row">
+      <div class="est-l">${h(aEstLine())}</div>
+      <div class="firm-r">
+        <div class="role">${RESP[aState.resp].role}</div>
+        <div class="nm">${RESP[aState.resp].nome}</div>
+        <div class="disc">Firma autografa ai sensi dell’art. 3 D.Lgs. 39/93</div>
+      </div>
+    </div>
+  `;
+}
+function aHints(){
+  const ph=aPerHintTxt();
+  aEls.perHint.textContent=ph.t; aEls.perHint.style.color=ph.warn?"#e0b341":"var(--ok)";
+  const t=parseInt(aState.tot,10), v=parseInt(aState.verb,10);
+  if(isNaN(t)){ aEls.hint.textContent=""; return; }
+  if(!isNaN(v) && v>t){ aEls.hint.textContent="⚠ I verbali superano i controlli"; aEls.hint.style.color="#e0b341"; return; }
+  aEls.hint.textContent="Veicoli in regola (calcolato): "+(t-(isNaN(v)?0:v)); aEls.hint.style.color="var(--ok)";
+}
+function aRender(){
+  aBuildSeg(); aBuildPreview(); aHints();
+  aEls.protNum.value=aState.protNum; aEls.protData.value=aState.protData;
+  aEls.dal.value=aState.dal; aEls.al.value=aState.al; aEls.cod.value=aState.cod;
+  aEls.tot.value=aState.tot; aEls.verb.value=aState.verb;
+  aEls.dataInput.value=aState.data; aEls.estNome.value=aState.estNome; aEls.estMatr.value=aState.estMatr;
+  aEls.status.textContent='';
+}
+
+// ---------- docx ----------
+function buildBodyAria(){
+  const p=aProtDoc();
+  let b=HDR_XML+hairline(120,120,NAVY,8);
+  b+=protoTableN(p);
+  b+=para({align:"right",before:120,after:160}, run(aDataDoc(),{sz:21}));
+  REPORT_DEST.forEach(d=>{
+    b+=para({align:"right",after:20,indentLeft:3600}, run(d.r1,{sz:21}));
+    b+=para({align:"right",after:20,indentLeft:3600}, run(d.r2,{b:1,sz:21}));
+    b+=para({align:"right",after:20,indentLeft:3600}, run(d.r3,{i:1,sz:19}));
+    b+=para({align:"right",after:120,indentLeft:3000}, run("INDIRIZZO DI PROTOCOLLO "+d.prot,{sz:13,color:GREY}));
+  });
+  b+=spacer(120);
+  b+=para({after:40}, run("O G G E T T O",{b:1,sz:16,color:NAVY,spacing:30}));
+  b+=hairline(20,20,NAVY,6);
+  b+=para({before:60,after:200,align:"both"}, run(aOggetto(),{b:1,sz:22}));
+  b+=para({align:"both",after:120,line:276}, run(aIntro(),{sz:22}));
+  b+=para({align:"both",after:80,line:276}, run(aIntro2(),{sz:22}));
+  aBullets().forEach(t=>{ b+=para({after:40,indentLeft:520}, run("•  ",{sz:22,color:NAVY})+run(t,{sz:22})); });
+  b+=para({before:120,after:120,align:"both",line:276}, run("Si resta a disposizione per eventuali ulteriori adempimenti o chiarimenti.",{sz:22}));
+  b+=para({after:120}, run("Cordialmente",{sz:22}));
+  b+=spacer(60);
+  b+=firmaRow(aEstLine(), RESP[aState.resp].role, RESP[aState.resp].nome);
+  return b;
+}
+function buildZipAria(){ return packDocx(buildBodyAria()); }
+
+// ---------- handlers ----------
+aEls.protNum.oninput=()=>{ aState.protNum=aEls.protNum.value; aBuildPreview(); };
+aEls.protData.onchange=()=>{ aState.protData=aEls.protData.value; aBuildPreview(); };
+aEls.dal.onchange=()=>{ aState.dal=aEls.dal.value; aBuildPreview(); aHints(); };
+aEls.al.onchange=()=>{ aState.al=aEls.al.value; aBuildPreview(); aHints(); };
+$("aNext").onclick=()=>{ aNextQuindicina(); aRender(); };
+aEls.cod.oninput=()=>{ aState.cod=aEls.cod.value; aBuildPreview(); };
+aEls.tot.oninput=()=>{ aState.tot=aEls.tot.value; aBuildPreview(); aHints(); };
+aEls.verb.oninput=()=>{ aState.verb=aEls.verb.value; aBuildPreview(); aHints(); };
+aEls.dataInput.onchange=()=>{ aState.data=aEls.dataInput.value; aBuildPreview(); };
+$("aClearDate").onclick=()=>{ aState.data=""; aRender(); };
+aEls.estNome.oninput=()=>{ aState.estNome=aEls.estNome.value; aBuildPreview(); };
+aEls.estMatr.oninput=()=>{ aState.estMatr=aEls.estMatr.value; aBuildPreview(); };
+aEls.genBtn.onclick=async()=>{
+  try{
+    aEls.status.style.color='var(--mut)'; aEls.status.textContent='Generazione in corso…';
+    const zip=buildZipAria();
+    const blob=await zip.generateAsync({type:"blob",mimeType:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url;
+    const per=(aState.dal&&aState.al)?("_"+aState.dal.split("-").reverse().join("-")+"_"+aState.al.split("-").reverse().join("-")):"";
+    a.download="Trasmissione_risultanze_OD1766"+per+".docx";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1500);
+    aEls.status.style.color='var(--ok)'; aEls.status.textContent='✓ Word generato e scaricato.';
+  }catch(e){ aEls.status.style.color='#e06a6a'; aEls.status.textContent='Errore: '+e.message; }
+};
+
 // ---------- tab switching ----------
-const PANES={v:$("tab-verbali"), o:$("tab-ord"), n:$("tab-notifiche"), r:$("tab-report"), m:$("tab-movida"), l:$("tab-locali"), t:$("tab-trasm"), c:$("tab-com"), g:$("tab-rel")};
-const TABS={v:$("tabBtnVerbali"), o:$("tabBtnOrd"), n:$("tabBtnNotifiche"), r:$("tabBtnReport"), m:$("tabBtnMovida"), l:$("tabBtnLocali"), t:$("tabBtnTrasm"), c:$("tabBtnCom"), g:$("tabBtnRel")};
+const PANES={v:$("tab-verbali"), o:$("tab-ord"), n:$("tab-notifiche"), r:$("tab-report"), m:$("tab-movida"), l:$("tab-locali"), t:$("tab-trasm"), c:$("tab-com"), g:$("tab-rel"), a:$("tab-aria")};
+const TABS={v:$("tabBtnVerbali"), o:$("tabBtnOrd"), n:$("tabBtnNotifiche"), r:$("tabBtnReport"), m:$("tabBtnMovida"), l:$("tabBtnLocali"), t:$("tabBtnTrasm"), c:$("tabBtnCom"), g:$("tabBtnRel"), a:$("tabBtnAria")};
 function showTab(k){ for(const key in PANES){ PANES[key].hidden=(key!==k); TABS[key].classList.toggle('active',key===k); } }
 Object.keys(TABS).forEach(k=>{ TABS[k].onclick=()=>showTab(k); });
 
@@ -2958,6 +3223,7 @@ tRender();
 cRender();
 oRender();
 gRender();
+aRender();
 </script>
 </body>
 </html>
