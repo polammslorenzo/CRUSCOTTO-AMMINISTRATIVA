@@ -858,12 +858,6 @@
         </div>
 
         <div class="block">
-          <div class="blab">Codice di riferimento</div>
-          <div class="ftiny">Rif Cod (compare nell'oggetto)</div>
-          <input type="text" id="aCod" placeholder="es. R11250D784">
-        </div>
-
-        <div class="block">
           <div class="blab">Risultanze</div>
           <div class="row">
             <div class="f-grow"><div class="ftiny">Controlli eseguiti</div><input type="number" id="aTot" min="0" placeholder="es. 107"></div>
@@ -3029,11 +3023,11 @@ const ARIA_NOTA = "PG/2026/1106982 del 15/10/2026";
 const ARIA_INIZIO = "2026-10-19", ARIA_FINE = "2027-03-31";
 const MESI_IT = ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
 
-let aState = { protNum:"", protData:"", dal:"2026-10-19", al:"2026-10-30", cod:"", tot:"", verb:"", resp:"autore", data:"", estNome:"Armando Ferrara", estMatr:"" };
+let aState = { protNum:"", protData:"", dal:"2026-10-19", al:"2026-10-30", tot:"", verb:"", resp:"autore", data:"", estNome:"Armando Ferrara", estMatr:"" };
 
 const aEls = {
   protNum:$("aProtNum"), protData:$("aProtData"), dal:$("aDal"), al:$("aAl"), perHint:$("aPerHint"),
-  cod:$("aCod"), tot:$("aTot"), verb:$("aVerb"), hint:$("aHint"), seg:$("aSeg"),
+  tot:$("aTot"), verb:$("aVerb"), hint:$("aHint"), seg:$("aSeg"),
   dataInput:$("aDataInput"), estNome:$("aEstNome"), estMatr:$("aEstMatr"),
   page:$("aPage"), genBtn:$("aGenBtn"), status:$("aStatus")
 };
@@ -3074,8 +3068,7 @@ function aProtDoc(){ const num=aState.protNum.trim()||"___________"; let date="_
 function aDataDoc(){ if(!aState.data) return "Napoli, data del protocollo"; const [y,m,d]=aState.data.split("-"); return `Napoli, lì ${d}/${m}/${y}`; }
 function aNum(v){ return String(v).trim()===""?"…":String(v).trim(); }
 function aUno(v){ return String(v).trim()==="1"; }
-function aCodTxt(){ return aState.cod.trim()||"____"; }
-function aOggetto(){ return "Trasmissione risultanze attività di controllo – "+ARIA_OD+" – "+aPeriodoOgg()+" – RIF COD "+aCodTxt(); }
+function aOggetto(){ return "Trasmissione risultanze attività di controllo – "+ARIA_OD+" – "+aPeriodoOgg(); }
 function aIntro(){
   return "In riferimento all’Ordinanza Dirigenziale n. 616 del 13 ottobre 2026 ("+ARIA_OD+"), emanata ai sensi della Delibera di Giunta Comunale n. 193 del 18 giugno 2020, e alla nota "+ARIA_NOTA+" concernente l’obbligo di comunicazione quindicinale degli esiti dei controlli effettuati, si trasmettono le risultanze delle attività di vigilanza svolte da questa Unità Operativa nel periodo "+aPeriodo()+".";
 }
@@ -3148,7 +3141,7 @@ function aHints(){
 function aRender(){
   aBuildSeg(); aBuildPreview(); aHints();
   aEls.protNum.value=aState.protNum; aEls.protData.value=aState.protData;
-  aEls.dal.value=aState.dal; aEls.al.value=aState.al; aEls.cod.value=aState.cod;
+  aEls.dal.value=aState.dal; aEls.al.value=aState.al;
   aEls.tot.value=aState.tot; aEls.verb.value=aState.verb;
   aEls.dataInput.value=aState.data; aEls.estNome.value=aState.estNome; aEls.estMatr.value=aState.estMatr;
   aEls.status.textContent='';
@@ -3187,7 +3180,6 @@ aEls.protData.onchange=()=>{ aState.protData=aEls.protData.value; aBuildPreview(
 aEls.dal.onchange=()=>{ aState.dal=aEls.dal.value; aBuildPreview(); aHints(); };
 aEls.al.onchange=()=>{ aState.al=aEls.al.value; aBuildPreview(); aHints(); };
 $("aNext").onclick=()=>{ aNextQuindicina(); aRender(); };
-aEls.cod.oninput=()=>{ aState.cod=aEls.cod.value; aBuildPreview(); };
 aEls.tot.oninput=()=>{ aState.tot=aEls.tot.value; aBuildPreview(); aHints(); };
 aEls.verb.oninput=()=>{ aState.verb=aEls.verb.value; aBuildPreview(); aHints(); };
 aEls.dataInput.onchange=()=>{ aState.data=aEls.dataInput.value; aBuildPreview(); };
