@@ -152,6 +152,7 @@
     <button class="tab" id="tabBtnCom">Comunicati · Controlli</button>
     <button class="tab" id="tabBtnRel">Relazioni · Generiche</button>
     <button class="tab" id="tabBtnAria">O.D. 1766 · Qualità dell'aria</button>
+    <button class="tab" id="tabBtnIrr">SUAP · SCIA irricevibili</button>
   </div>
 
   <div id="tab-verbali" class="tabpane">
@@ -898,6 +899,78 @@
       </div>
     </div>
   </div><!-- /tab-aria -->
+
+  <div id="tab-irr" class="tabpane" hidden>
+    <p class="sub">Riscontro al S.U.A.P. sulle SCIA dichiarate irricevibili/improcedibili — carica l'Excel delle pratiche con l'esito annotato (verbali elevati oppure nuova SCIA): la nota di riscontro si compone da sola.</p>
+    <div class="grid">
+      <!-- CONTROLS IRRICEVIBILI -->
+      <div class="card">
+        <h2>Dati riscontro</h2>
+
+        <div class="block" style="margin-top:0">
+          <div class="blab">Nota S.U.A.P. da riscontrare</div>
+          <div class="row">
+            <div class="f-grow"><div class="ftiny">Prot. nota</div><input type="text" id="iNotaProt" placeholder="es. PG/2026/1058975"></div>
+            <div class="f-matr"><div class="ftiny">del</div><input type="date" id="iNotaData" style="padding:10px 8px"></div>
+          </div>
+          <div style="margin-top:8px"><div class="ftiny">Oggetto della nota</div><input type="text" id="iNotaOgg" placeholder="es. Trasmissione SCIA inefficaci APRILE-MAGGIO-GIUGNO/2026"></div>
+          <div style="margin-top:8px"><div class="ftiny">Alla c.a. di (facolt., Responsabile del procedimento)</div><input type="text" id="iCa" placeholder="es. Dott.ssa Patrizia ALAIO"></div>
+        </div>
+
+        <div class="block">
+          <div class="blab">Elenco pratiche — da Excel</div>
+          <div class="ftiny">L'elenco del S.U.A.P. (colonne Id Pratica e Richiedente · Indirizzo impianto · Adempimenti) con, nella colonna successiva, l'esito annotato: <b>numeri dei verbali</b> (es. «verb vic VV/21990078797 verb san VV/21990078786») oppure <b>nuova SCIA</b> (es. «Scia 576093 del 21/05/26»). Se c'è la colonna dell'Unità Operativa, vengono tenute solo le pratiche di San Lorenzo.</div>
+          <input type="file" id="iXlsx" accept=".xlsx,.csv" style="width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--mut);padding:9px 11px;border-radius:9px;font-family:inherit;font-size:13px">
+          <div class="ftiny" id="iParseInfo" style="margin-top:8px;color:var(--ok)"></div>
+        </div>
+
+        <div class="block">
+          <div class="blab">Pratiche ed esiti</div>
+          <div class="ftiny">Controlla quanto letto dall'Excel e correggi se serve: il testo della nota cambia di conseguenza</div>
+          <div id="iRighe" style="max-height:620px;overflow:auto;padding-right:4px"></div>
+          <button class="cleardate" id="iAddBtn">+ Aggiungi pratica a mano</button>
+        </div>
+
+        <div class="block">
+          <div class="blab">Protocollo</div>
+          <div class="row">
+            <div class="f-grow"><div class="ftiny">Prot. n.</div><input type="text" id="iProtNum" placeholder="es. PG/2026/000000"></div>
+            <div class="f-matr"><div class="ftiny">del</div><input type="date" id="iProtData" style="padding:10px 8px"></div>
+          </div>
+        </div>
+
+        <div class="block">
+          <div class="blab">Firmatario</div>
+          <div class="seg" id="iSeg"></div>
+        </div>
+
+        <div class="block">
+          <div class="blab">Data del documento</div>
+          <input type="date" id="iDataInput">
+          <button class="cleardate" id="iClearDate">Lascia in bianco</button>
+        </div>
+
+        <div class="block">
+          <div class="blab">Estensore</div>
+          <div class="row">
+            <div class="f-grow"><div class="ftiny">Nome (A.C.)</div><input type="text" id="iEstNome" placeholder="Nome Cognome"></div>
+            <div class="f-matr"><div class="ftiny">Matricola (facolt.)</div><input type="text" id="iEstMatr" placeholder="0000"></div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="gen" id="iGenBtn">⬇ Genera Word (.docx)</button>
+          <div class="status" id="iStatus"></div>
+        </div>
+      </div>
+
+      <!-- PREVIEW IRRICEVIBILI -->
+      <div class="card">
+        <h2>Anteprima</h2>
+        <div class="preview-wrap"><div class="page" id="iPage"></div></div>
+      </div>
+    </div>
+  </div><!-- /tab-irr -->
 </div>
 
 <script>
@@ -3201,9 +3274,425 @@ aEls.genBtn.onclick=async()=>{
   }catch(e){ aEls.status.style.color='#e06a6a'; aEls.status.textContent='Errore: '+e.message; }
 };
 
+// =====================================================================
+// ===================== SUAP · SCIA IRRICEVIBILI ======================
+// =====================================================================
+// Riscontro alla nota S.U.A.P. di trasmissione delle SCIA dichiarate
+// irricevibili/improcedibili (modello: nota PG/2026/1058975 del 05/10/2026).
+// L'Excel e' l'elenco del S.U.A.P. con l'esito annotato in coda a ogni riga.
+const I_DEST = { r1:"All’Area Sviluppo Economico", r2:"Servizio SUAP", r3:"Unità Operativa Esercizi Pubblici e Vicinato", prot:"11.11.0.0.0" };
+const I_ESITI = {
+  verbali:{ menu:"Verbali elevati" },
+  scia:   { menu:"Nuova SCIA (in regola)" },
+  cessata:{ menu:"Attività cessata / chiusa" },
+  altro:  { menu:"Altro (specifica)" }
+};
+
+let iState = { notaProt:"PG/2026/1058975", notaData:"2026-10-05", notaOgg:"Trasmissione SCIA inefficaci APRILE-MAGGIO-GIUGNO/2026",
+  ca:"Dott.ssa Patrizia ALAIO", righe:[], info:"", protNum:"", protData:"", resp:"autore", data:"", estNome:"Armando Ferrara", estMatr:"" };
+
+const iEls = {
+  notaProt:$("iNotaProt"), notaData:$("iNotaData"), notaOgg:$("iNotaOgg"), ca:$("iCa"),
+  xlsx:$("iXlsx"), parseInfo:$("iParseInfo"), righe:$("iRighe"), addBtn:$("iAddBtn"),
+  protNum:$("iProtNum"), protData:$("iProtData"), seg:$("iSeg"), dataInput:$("iDataInput"),
+  estNome:$("iEstNome"), estMatr:$("iEstMatr"), page:$("iPage"), genBtn:$("iGenBtn"), status:$("iStatus")
+};
+
+// ---------- lettura Excel (.xlsx via JSZip, senza librerie aggiuntive) ----------
+function iColIdx(ref){ const l=(ref||"").replace(/\d+/g,""); let n=0; for(const ch of l) n=n*26+(ch.charCodeAt(0)-64); return n-1; }
+function iXmlText(node){ // testo di <si>/<is>, escluse le letture fonetiche
+  let s=""; node.querySelectorAll("t").forEach(t=>{ if(!t.closest("rPh")) s+=t.textContent; }); return s;
+}
+async function iReadXlsx(buf){
+  const zip=await JSZip.loadAsync(buf), P=new DOMParser();
+  const xml=async(p)=>{ const f=zip.file(p); return f?P.parseFromString(await f.async("string"),"application/xml"):null; };
+  const sst=[]; const ssx=await xml("xl/sharedStrings.xml");
+  if(ssx) Array.from(ssx.getElementsByTagNameNS("*","si")).forEach(si=>sst.push(iXmlText(si)));
+  const wb=await xml("xl/workbook.xml"), rels=await xml("xl/_rels/workbook.xml.rels");
+  if(!wb) throw new Error("file Excel non valido (salvalo come .xlsx)");
+  const relMap={}; if(rels) Array.from(rels.getElementsByTagNameNS("*","Relationship")).forEach(r=>relMap[r.getAttribute("Id")]=r.getAttribute("Target"));
+  const sheets=[];
+  for(const sh of Array.from(wb.getElementsByTagNameNS("*","sheet"))){
+    const rid=sh.getAttribute("r:id")||sh.getAttributeNS("http://schemas.openxmlformats.org/officeDocument/2006/relationships","id");
+    let t=relMap[rid]; if(!t) continue;
+    t=t.startsWith("/")?t.slice(1):("xl/"+t.replace(/^\.\//,""));
+    const sx=await xml(t); if(!sx) continue;
+    const rows=[];
+    Array.from(sx.getElementsByTagNameNS("*","row")).forEach(rw=>{
+      const r=[];
+      Array.from(rw.getElementsByTagNameNS("*","c")).forEach((c,k)=>{
+        const ty=c.getAttribute("t"), v=c.getElementsByTagNameNS("*","v")[0];
+        let val="";
+        if(ty==="s") val=v?(sst[+v.textContent]||""):"";
+        else if(ty==="inlineStr"){ const is=c.getElementsByTagNameNS("*","is")[0]; val=is?iXmlText(is):""; }
+        else val=v?v.textContent:"";
+        const ci=c.getAttribute("r")?iColIdx(c.getAttribute("r")):k;
+        r[ci]=val;
+      });
+      if(r.some(x=>String(x||"").trim())) rows.push(Array.from(r,x=>x==null?"":String(x)));
+    });
+    sheets.push(rows);
+  }
+  sheets.sort((a,b)=>b.length-a.length);
+  return sheets[0]||[];
+}
+function iReadCsv(text){
+  const lines=text.split(/\r?\n/).filter(l=>l.trim()); if(!lines.length) return [];
+  const sep=cDetectSep(lines[0]); return lines.map(l=>l.split(sep));
+}
+
+// ---------- normalizzazione dei campi ----------
+function iClean(s){ return String(s||"").split(/\r?\n/).map(x=>x.trim().replace(/^"+|"+$/g,"").trim()).filter(Boolean).join("\n"); }
+function iOne(s){ return iClean(s).replace(/\s*\n\s*/g," ").replace(/\s{2,}/g," ").trim(); }
+function iRich(s){
+  return s.replace(/SOCIETA['`’]?\s+A\s+RESPONSABILITA['`’]?\s+LIMITATA\s+SEMPLIFICAT\s*A\b/i,"S.R.L.S.")
+          .replace(/SOCIETA['`’]?\s+A\s+RESPONSABILITA['`’]?\s+LIMITATA\b/i,"S.R.L.").replace(/\s{2,}/g," ").trim();
+}
+function iIndirizzo(s){
+  const small=new Set(["di","de","del","della","delle","dei","degli","dello","e","a","al","alla","alle","ai","in","da","dal","dalla"]);
+  const t=iOne(s).replace(/[`´’]/g,"'").replace(/'\s+/g,"'").replace(/\s*\b\d{5}\s+NAPOLI\b.*$/i,"").trim();
+  return t.toLowerCase().split(/\s+/).filter(Boolean).map((w,i)=>{
+    if(/\d/.test(w)) return w.toUpperCase();
+    if(w==="snc") return "snc";
+    if(/^(i{1,3}|iv|vi{1,3}|ix|xi{0,3}|xiv|xv)$/.test(w) && i>0) return w.toUpperCase();
+    if(i>0 && small.has(w)) return w;
+    return w.replace(/(^|')([a-zà-ù])/g,(m,a,b)=>a+b.toUpperCase());
+  }).join(" ");
+}
+function iSciaLabel(adm){
+  const t=(adm||"").toLowerCase();
+  const az=/subingresso/.test(t)?"di subingresso":/trasferimento di sede/.test(t)?"di trasferimento di sede":/variazion/.test(t)?"di variazione dei soggetti":"di apertura";
+  let set="";
+  if(/circol|associazion/.test(t)) set="attività di somministrazione di alimenti e bevande annessa a circolo privato";
+  else if(/somministrazione/.test(t)) set="attività di somministrazione di alimenti e bevande";
+  else if(/vicinato/.test(t)) set=/non alimentare/.test(t)?"esercizio di vicinato del settore non alimentare":"esercizio di vicinato del settore alimentare";
+  if(!set){ const first=iClean(adm).split("\n")[0]||""; return first.replace(/^-\s*/,""); }
+  return "SCIA "+az+" per l’"+set;
+}
+function iMateria(lab){
+  const t=(lab||"").toLowerCase();
+  if(/san/.test(t)) return "normativa igienico-sanitaria – art. 6 Reg. CE 852/2004";
+  const vic=/vic/.test(t), som=/somm/.test(t);
+  if(vic && som) return "vicinato/somministrazione in assenza di titolo";
+  if(vic) return /non\s*alim/.test(t)?"esercizio di vicinato non alimentare in assenza di titolo":(/alim/.test(t)?"esercizio di vicinato alimentare in assenza di titolo":"esercizio di vicinato in assenza di titolo");
+  if(som) return "somministrazione di alimenti e bevande in assenza di titolo";
+  return "esercizio dell’attività in assenza di titolo";
+}
+function iData(s){
+  const m=/(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/.exec(s||""); if(!m) return "";
+  const y=m[3].length===2?("20"+m[3]):m[3]; return m[1].padStart(2,"0")+"/"+m[2].padStart(2,"0")+"/"+y;
+}
+function iNota(s){ let n=(s||"").replace(/\bprot\b\.?/ig," ").replace(/^\s*di\s+/i,"").replace(/\s{2,}/g," ").replace(/^[\s,;:\-–]+|[\s,;:\-–.]+$/g,""); if(n && n===n.toUpperCase()) n=n.toLowerCase(); return n; }
+// Esito annotato dall'operatore: verbali (numeri lunghi, serie VV) oppure nuova SCIA
+function iParseEsito(raw){
+  const a=iOne(raw);
+  const out={esito:"altro", verbali:[], sciaNum:"", sciaData:"", nota:""};
+  const re=/(VV\s*\/?\s*)?(\d{10,14})/gi; let m, last=0;
+  while((m=re.exec(a))){ out.verbali.push({num:"VV/"+m[2], mat:iMateria(a.slice(last,m.index))}); last=re.lastIndex; }
+  if(out.verbali.length){ out.esito="verbali"; return out; }
+  const ms=/\b(scia|prot)\b\.?([^\d]{0,80}?)(\d{4,9})(?:\s*(?:del|-|,)?\s*(\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4}))?/i.exec(a);
+  if(ms){
+    out.esito="scia"; out.sciaNum=ms[3]; out.sciaData=iData(ms[4]||"");
+    out.nota=iNota((a.slice(0,ms.index)+" "+ms[2]+" "+a.slice(ms.index+ms[0].length)).replace(/\bscia\b/ig," "));
+    return out;
+  }
+  if(/cessat|chius|non\s+(?:più\s+)?in\s+esercizio|non\s+rinvenut/i.test(a)){ out.esito="cessata"; out.nota=iNota(a); return out; }
+  out.nota=a; return out;
+}
+function iRigheDaTabella(rows){
+  let h=rows.findIndex(r=>r.some(x=>/pratica|richiedente/i.test(x)));
+  const head=h>=0?rows[h].map(x=>String(x).toLowerCase()):[];
+  const find=(re,def)=>{ const j=head.findIndex(x=>re.test(x)); return j>=0?j:def; };
+  const cId=find(/pratica|richiedente/,0), cInd=find(/indirizz/,1), cAdm=find(/adempiment/,2), cUo=find(/unit|^u\.?\s*o\.?$/,-1);
+  let dati=rows.slice(h+1);
+  let filtro="";
+  if(cUo>=0 && dati.some(r=>/lorenzo/i.test(r[cUo]||""))){ const tot=dati.length; dati=dati.filter(r=>/lorenzo/i.test(r[cUo]||"")); filtro=" (tenute "+dati.length+" su "+tot+": U.O. San Lorenzo)"; }
+  const righe=dati.map(r=>{
+    const idParts=iClean(r[cId]).split("\n");
+    let id="", rich="";
+    const k=idParts.findIndex(x=>/^[A-Z0-9]{8,16}-\d{8}-\d{3,4}$/i.test(x));
+    if(k>=0){ id=idParts[k]; rich=idParts.filter((_,j)=>j!==k).join(" "); }
+    else { const mm=/^([A-Z0-9]{8,16}-\d{8}-\d{3,4})\s*(.*)$/i.exec(idParts.join(" ")); if(mm){ id=mm[1]; rich=mm[2]; } else rich=idParts.join(" "); }
+    const raw=r.map((x,j)=>(j===cId||j===cInd||j===cAdm||j===cUo)?"":iOne(x)).filter(Boolean).join(" ");
+    return Object.assign({ id, rich:iRich(rich), ind:iIndirizzo(r[cInd]), adm:iClean(r[cAdm]), raw }, iParseEsito(raw));
+  }).filter(x=>x.id||x.rich);
+  return {righe, filtro};
+}
+
+// ---------- testo della nota ----------
+function iDataV(v){ if(!v) return "____/____/________"; const [y,m,d]=v.split("-"); return `${d}/${m}/${y}`; }
+function iProtDoc(){ const num=iState.protNum.trim()||"___________"; let date="____ / ____ / ________"; if(iState.protData){const [y,m,d]=iState.protData.split("-"); date=`${d}/${m}/${y}`;} return {num,date}; }
+function iDataDoc(){ if(!iState.data) return "____ / ____ / ________"; const [y,m,d]=iState.data.split("-"); return `${d}/${m}/${y}`; }
+function iEstLine(){ const n=iState.estNome.trim()||"_______________"; const m=iState.estMatr.trim(); return "Estensore: A.C. "+n+(m?"  ·  matr. "+m:""); }
+function iJoin(l){ return l.length<2?(l[0]||""):(l.slice(0,-1).join(", ")+" e "+l[l.length-1]); }
+function iNotaRif(){ return "nota "+(iState.notaProt.trim()||"PG/____/_______")+" del "+iDataV(iState.notaData); }
+function iOggetto(){ const o=iState.notaOgg.trim(); return "Riscontro "+iNotaRif()+(o?(" – "+o):"")+" – esito dei controlli"; }
+function iNVerbali(){ return iState.righe.filter(r=>r.esito==="verbali").reduce((n,r)=>n+r.verbali.filter(v=>v.num.trim()).length,0); }
+function iIntro(){
+  const n=iState.righe.length;
+  return "In riscontro alla "+iNotaRif()+", con la quale codesto Servizio ha trasmesso l’elenco delle SCIA dichiarate irricevibili/improcedibili relative ad esercizi ricadenti nel territorio di competenza, si comunica che il personale di questa Unità Operativa ha effettuato i controlli presso "+(n===1?"l’esercizio segnalato":("i n. "+(n||"…")+" esercizi segnalati"))+", con gli esiti di seguito riportati.";
+}
+function iItem(r){
+  const t1=(r.rich.trim()||"…")+(r.ind.trim()?(" — "+r.ind.trim()):"");
+  const pre="Pratica n. "+(r.id.trim()||"…")+(r.adm?(" ("+iSciaLabel(r.adm)+")"):"")+": ";
+  const nota=r.nota.trim();
+  let t2;
+  if(r.esito==="verbali"){
+    const vv=r.verbali.filter(v=>v.num.trim());
+    t2 = vv.length
+      ? (vv.length===1?"elevato il verbale ":"elevati i verbali ")+iJoin(vv.map(v=>"n. "+v.num.trim()+(v.mat.trim()?(" ("+v.mat.trim()+")"):"")))+"."
+      : "elevati i verbali n. …";
+  } else if(r.esito==="scia"){
+    t2="l’attività risulta esercitata in forza di nuova SCIA"+(r.sciaNum.trim()?(" n. "+r.sciaNum.trim()):"")+(r.sciaData.trim()?(" del "+r.sciaData.trim()):"")+(nota?(" ("+nota+")"):"")+".";
+  } else if(r.esito==="cessata"){
+    t2="all’atto del controllo l’attività è risultata cessata"+(nota?(" ("+nota+")"):"")+".";
+  } else {
+    t2=(nota||"…")+(/[.!?]$/.test(nota)?"":".");
+  }
+  return {t1, t2:pre+t2};
+}
+function iSezioni(){
+  const gruppi=[
+    { k:"verbali", titolo:"Esercizi presso i quali sono stati elevati verbali di accertamento",
+      intro:(u)=>"Presso "+(u?"il seguente esercizio":"i seguenti esercizi")+" è stato accertato l’esercizio dell’attività in assenza di titolo efficace, non risultando presentata nuova segnalazione in sostituzione di quella dichiarata irricevibile/improcedibile; si è proceduto, pertanto, alla contestazione delle violazioni come di seguito indicato:" },
+    { k:"scia", titolo:"Esercizi per i quali risulta presentata nuova SCIA",
+      intro:(u)=>"Per "+(u?"il seguente esercizio":"i seguenti esercizi")+" non sono state riscontrate irregolarità, risultando l’attività esercitata in forza di nuova SCIA, come di seguito indicato:" },
+    { k:"cessata", titolo:"Esercizi risultati cessati",
+      intro:(u)=>"Per "+(u?"il seguente esercizio":"i seguenti esercizi")+" non è stata riscontrata attività in esercizio all’atto del controllo:" },
+    { k:"altro", titolo:"Altri esiti",
+      intro:(u)=>"Per "+(u?"il seguente esercizio":"i seguenti esercizi")+" si riporta quanto segue:" }
+  ];
+  const out=[]; let L=0;
+  gruppi.forEach(g=>{
+    const rr=iState.righe.filter(r=>r.esito===g.k); if(!rr.length) return;
+    out.push({ lettera:"ABCD"[L++], titolo:g.titolo+" (n. "+rr.length+")", intro:g.intro(rr.length===1), items:rr.map(iItem) });
+  });
+  return out;
+}
+function iSintesi(){
+  const n=iState.righe.length; if(!n) return "";
+  const c=(k)=>iState.righe.filter(r=>r.esito===k).length;
+  const parti=[];
+  if(c("verbali")) parti.push("n. "+c("verbali")+" "+(c("verbali")===1?"esercizio sanzionato":"esercizi sanzionati")+" (n. "+iNVerbali()+" "+(iNVerbali()===1?"verbale elevato":"verbali elevati")+")");
+  if(c("scia")) parti.push("n. "+c("scia")+" "+(c("scia")===1?"esercizio":"esercizi")+" con nuova SCIA");
+  if(c("cessata")) parti.push("n. "+c("cessata")+" "+(c("cessata")===1?"esercizio cessato":"esercizi cessati"));
+  if(c("altro")) parti.push("n. "+c("altro")+" con altro esito");
+  return "In sintesi, su n. "+n+" "+(n===1?"pratica segnalata":"pratiche segnalate")+": "+iJoin(parti)+".";
+}
+function iChiusura(){
+  const nv=iNVerbali();
+  return nv ? "Si trasmette, in allegato, copia "+(nv===1?"del verbale":"dei verbali")+" di accertamento "+(nv===1?"elevato":"elevati")+", per il seguito di competenza." : "";
+}
+function iAllegati(){ const nv=iNVerbali(); return nv?("copia "+(nv===1?"del verbale":"dei verbali")+" di accertamento (n. "+nv+")"):""; }
+
+// ---------- preview ----------
+function iAttr(s){ return esc(String(s||"")).replace(/"/g,"&quot;"); }
+function iBuildSeg(){
+  iEls.seg.innerHTML='';
+  Object.keys(RESP_MENU).forEach(k=>{
+    const r=RESP_MENU[k], on=iState.resp===k;
+    const o=document.createElement('div');
+    o.className='opt2'+(on?' on':'');
+    o.innerHTML=`<div class="radio"></div><div class="lab2">${r.titolo}<small>${r.ruolo}</small></div>`;
+    o.onclick=()=>{ iState.resp=k; iRender(); };
+    iEls.seg.appendChild(o);
+  });
+}
+function iNuovaRiga(){ return {id:"",rich:"",ind:"",adm:"",raw:"",esito:"verbali",verbali:[{num:"",mat:iMateria("")}],sciaNum:"",sciaData:"",nota:""}; }
+function iBuildRighe(){
+  iEls.righe.innerHTML='';
+  if(!iState.righe.length){ iEls.righe.innerHTML='<div class="ftiny" style="padding:12px 0;font-style:italic">Nessuna pratica: carica l’Excel oppure aggiungila a mano.</div>'; return; }
+  iState.righe.forEach((r,i)=>{
+    const w=document.createElement('div');
+    w.style.cssText="border:1px solid var(--line);border-radius:9px;padding:12px;margin-bottom:10px";
+    const col={verbali:"#e0b341",scia:"var(--ok)",cessata:"var(--mut)",altro:"var(--accent)"}[r.esito];
+    const opts=Object.keys(I_ESITI).map(k=>`<option value="${k}"${r.esito===k?' selected':''}>${I_ESITI[k].menu}</option>`).join('');
+    let det="";
+    if(r.esito==="verbali"){
+      det=r.verbali.map((v,j)=>`
+        <div class="row" style="margin-top:8px;align-items:flex-end">
+          <div style="flex:0 0 165px"><div class="ftiny">Verbale n.</div><input type="text" class="i-vn" data-i="${i}" data-j="${j}" value="${iAttr(v.num)}" placeholder="VV/00000000000"></div>
+          <div class="f-grow"><div class="ftiny">Materia</div><input type="text" class="i-vm" data-i="${i}" data-j="${j}" value="${iAttr(v.mat)}"></div>
+          ${r.verbali.length>1?`<span class="i-vdel" data-i="${i}" data-j="${j}" style="cursor:pointer;color:var(--mut);font-weight:700;padding:0 0 12px">✕</span>`:''}
+        </div>`).join('')+`<button class="cleardate i-vadd" data-i="${i}">+ verbale</button>`;
+    } else if(r.esito==="scia"){
+      det=`<div class="row" style="margin-top:8px">
+          <div class="f-grow"><div class="ftiny">SCIA n.</div><input type="text" class="i-sn" data-i="${i}" value="${iAttr(r.sciaNum)}" placeholder="es. 576093"></div>
+          <div class="f-grow"><div class="ftiny">del</div><input type="text" class="i-sd" data-i="${i}" value="${iAttr(r.sciaData)}" placeholder="gg/mm/aaaa"></div>
+        </div>
+        <div class="ftiny" style="margin-top:8px">Annotazione (facolt., tra parentesi)</div><input type="text" class="i-no" data-i="${i}" value="${iAttr(r.nota)}" placeholder="es. subingresso a nome di altra società">`;
+    } else {
+      det=`<div class="ftiny" style="margin-top:8px">${r.esito==="cessata"?"Annotazione (facolt., tra parentesi)":"Esito da riportare"}</div><input type="text" class="i-no" data-i="${i}" value="${iAttr(r.nota)}" placeholder="${r.esito==="cessata"?"es. locale chiuso con saracinesca abbassata":"es. attività non rinvenuta al civico indicato"}">`;
+    }
+    w.innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div class="ftiny" style="margin:0;color:${col};font-weight:600">Pratica ${i+1} · ${I_ESITI[r.esito].menu}</div>
+        <span class="i-del" data-i="${i}" style="cursor:pointer;color:var(--mut);font-weight:700">✕</span>
+      </div>
+      <div class="ftiny">Id pratica</div><input type="text" class="i-id" data-i="${i}" value="${iAttr(r.id)}" placeholder="es. 10530201218-10022026-1001">
+      <div class="ftiny" style="margin-top:8px">Richiedente / esercizio</div><input type="text" class="i-ri" data-i="${i}" value="${iAttr(r.rich)}">
+      <div class="ftiny" style="margin-top:8px">Indirizzo</div><input type="text" class="i-in" data-i="${i}" value="${iAttr(r.ind)}">
+      <div class="ftiny" style="margin-top:8px">Esito del controllo</div><select class="i-es" data-i="${i}">${opts}</select>
+      ${det}
+      ${r.raw?`<div class="ftiny" style="margin-top:8px;font-style:italic">Annotazione Excel: ${esc(r.raw)}</div>`:''}
+    `;
+    iEls.righe.appendChild(w);
+  });
+  const on=(cls,ev,fn)=>iEls.righe.querySelectorAll(cls).forEach(el=>el[ev]=()=>fn(el,iState.righe[+el.dataset.i]));
+  on('.i-id','oninput',(el,r)=>{ r.id=el.value; iBuildPreview(); });
+  on('.i-ri','oninput',(el,r)=>{ r.rich=el.value; iBuildPreview(); });
+  on('.i-in','oninput',(el,r)=>{ r.ind=el.value; iBuildPreview(); });
+  on('.i-sn','oninput',(el,r)=>{ r.sciaNum=el.value; iBuildPreview(); });
+  on('.i-sd','oninput',(el,r)=>{ r.sciaData=el.value; iBuildPreview(); });
+  on('.i-no','oninput',(el,r)=>{ r.nota=el.value; iBuildPreview(); });
+  on('.i-vn','oninput',(el,r)=>{ r.verbali[+el.dataset.j].num=el.value; iBuildPreview(); iInfo(); });
+  on('.i-vm','oninput',(el,r)=>{ r.verbali[+el.dataset.j].mat=el.value; iBuildPreview(); });
+  on('.i-es','onchange',(el,r)=>{ r.esito=el.value; if(r.esito==="verbali" && !r.verbali.length) r.verbali.push({num:"",mat:iMateria("")}); iRender(); });
+  on('.i-vadd','onclick',(el,r)=>{ r.verbali.push({num:"",mat:iMateria("san")}); iRender(); });
+  on('.i-vdel','onclick',(el,r)=>{ r.verbali.splice(+el.dataset.j,1); iRender(); });
+  on('.i-del','onclick',(el,r)=>{ iState.righe.splice(+el.dataset.i,1); iRender(); });
+}
+function iInfo(){
+  const n=iState.righe.length;
+  if(!n){ iEls.parseInfo.textContent=iState.info; return; }
+  const c=(k)=>iState.righe.filter(r=>r.esito===k).length;
+  iEls.parseInfo.textContent=(iState.info?iState.info+" — ":"")+n+" pratiche: "+c("verbali")+" con verbali ("+iNVerbali()+" verbali), "+c("scia")+" con nuova SCIA"+(c("cessata")?", "+c("cessata")+" cessate":"")+(c("altro")?", "+c("altro")+" altro":"");
+}
+function iBuildPreview(){
+  const p=iProtDoc(), h=(s)=>esc(String(s)), al=iAllegati(), ch=iChiusura(), si=iSintesi();
+  const sez=iSezioni().map(s=>`
+    <div class="body-line" style="margin-top:14px;color:#1A3A6B;font-weight:700">${s.lettera}.&nbsp;&nbsp;${h(s.titolo)}</div>
+    <div class="body-p" style="margin-top:6px">${h(s.intro)}</div>
+    ${s.items.map(it=>`<div class="body-line" style="margin-top:8px;margin-left:16px"><b>•&nbsp;&nbsp;${h(it.t1)}</b></div><div class="body-p" style="margin-top:2px;margin-left:34px;font-size:11.5px">${h(it.t2)}</div>`).join('')}
+  `).join('');
+  iEls.page.innerHTML=`
+    <div class="pg-head">
+      <img class="logoimg" src="data:image/png;base64,${IMG1_B64}" alt="Stemma">
+      <div class="banner">
+        <div class="t1">C O M U N E&nbsp; D I&nbsp; N A P O L I&nbsp; · &nbsp;P O L I Z I A&nbsp; M U N I C I P A L E</div>
+        <div class="t2">Area Sicurezza</div>
+        <div class="t3">Servizio Coordinamento Strategico Operativo</div>
+        <div class="t4">Unità Operativa San Lorenzo · Ufficio di Polizia Amministrativa</div>
+      </div>
+      <img class="logoimg" src="data:image/png;base64,${IMG2_B64}" alt="Logo P.M.">
+    </div>
+    <hr class="rule">
+    <div class="dest" style="margin-top:14px"><div>${I_DEST.r1}</div><div><b>${I_DEST.r2}</b></div><div>${I_DEST.r3}</div>${iState.ca.trim()?`<div style="font-style:italic">c.a. ${h(iState.ca.trim())}</div>`:''}<div style="font-size:9px;color:#6B7280;letter-spacing:.04em">INDIRIZZO DI PROTOCOLLO ${I_DEST.prot}</div></div>
+    <div class="proto" style="margin-top:12px"><div class="bar"></div><div class="pcontent">
+      <div>${p.num==="___________"?'<b>Prot. n.</b> <span class="muted">___________</span>':'<b>Prot. n.</b> <b>'+h(p.num)+'</b>'} &nbsp;&nbsp;<b>del</b> ${p.date.includes("_")?'<span class="muted">__/__/____</span>':'<b>'+p.date+'</b>'}</div>
+      ${al?`<div><b>Allegati:</b> ${h(al)}</div>`:''}
+    </div></div>
+    <div class="ogg-label" style="margin-top:16px">O&nbsp;G&nbsp;G&nbsp;E&nbsp;T&nbsp;T&nbsp;O</div>
+    <hr class="ogg-rule">
+    <div class="ogg-title">${h(iOggetto())}</div>
+    <div class="body-p">${h(iIntro())}</div>
+    ${sez||'<div class="empty">Carica l’Excel delle pratiche per comporre la nota.</div>'}
+    ${si?`<div class="body-p" style="margin-top:14px">${h(si)}</div>`:''}
+    ${ch?`<div class="body-p" style="margin-top:8px">${h(ch)}</div>`:''}
+    <div class="body-line" style="margin-top:10px">Si resta a disposizione per eventuali ulteriori adempimenti o chiarimenti.</div>
+    <div class="body-line">Cordialmente</div>
+    <div class="data">Napoli, lì ${iDataDoc()}</div>
+    <div class="sig-row">
+      <div class="est-l">${h(iEstLine())}</div>
+      <div class="firm-r">
+        <div class="role">${RESP[iState.resp].role}</div>
+        <div class="nm">${RESP[iState.resp].nome}</div>
+        <div class="disc">Firma autografa ai sensi dell’art. 3 D.Lgs. 39/93</div>
+      </div>
+    </div>
+  `;
+}
+function iRender(){
+  iBuildSeg(); iBuildRighe(); iBuildPreview(); iInfo();
+  iEls.notaProt.value=iState.notaProt; iEls.notaData.value=iState.notaData; iEls.notaOgg.value=iState.notaOgg; iEls.ca.value=iState.ca;
+  iEls.protNum.value=iState.protNum; iEls.protData.value=iState.protData;
+  iEls.dataInput.value=iState.data; iEls.estNome.value=iState.estNome; iEls.estMatr.value=iState.estMatr;
+  iEls.status.textContent='';
+}
+
+// ---------- docx ----------
+function buildBodyIrr(){
+  const p=iProtDoc(), al=iAllegati(), ch=iChiusura(), si=iSintesi();
+  let b=HDR_XML+hairline(120,120,NAVY,8);
+  b+=para({align:"right",after:20,indentLeft:3600}, run(I_DEST.r1,{sz:21}));
+  b+=para({align:"right",after:20,indentLeft:3600}, run(I_DEST.r2,{b:1,sz:21}));
+  b+=para({align:"right",after:20,indentLeft:3600}, run(I_DEST.r3,{sz:21}));
+  if(iState.ca.trim()) b+=para({align:"right",after:20,indentLeft:3600}, run("c.a. "+iState.ca.trim(),{i:1,sz:19}));
+  b+=para({align:"right",after:120,indentLeft:3000}, run("INDIRIZZO DI PROTOCOLLO "+I_DEST.prot,{sz:13,color:GREY}));
+  const numRun = p.num==="___________" ? run(p.num,{sz:19,color:GREY}) : run(p.num,{b:1,sz:19,color:"333333"});
+  const dateRun = p.date==="____ / ____ / ________" ? run(p.date,{sz:19,color:GREY}) : run(p.date,{b:1,sz:19,color:"333333"});
+  const side=`<w:tc><w:tcPr><w:tcW w:w="120" w:type="dxa"/>${noTcB}<w:shd w:val="clear" w:fill="${NAVY}"/></w:tcPr>${para({},run("",{sz:2}))}</w:tc>`;
+  const main=`<w:tc><w:tcPr><w:tcW w:w="9240" w:type="dxa"/>${noTcB}${mar(60,200,60,120)}</w:tcPr>`+
+    para({after:al?30:0}, run("Prot. n. ",{b:1,sz:19,color:NAVY})+numRun+run("     del  ",{b:1,sz:19,color:NAVY})+dateRun)+
+    (al?para({}, run("Allegati: ",{b:1,sz:19,color:NAVY})+run(al,{sz:19,color:"333333"})):"")+`</w:tc>`;
+  b+=`<w:tbl><w:tblPr><w:tblW w:w="${CW}" w:type="dxa"/>${NOB}<w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid><w:gridCol w:w="120"/><w:gridCol w:w="9240"/></w:tblGrid><w:tr>${side}${main}</w:tr></w:tbl>`+spacer(180);
+  b+=para({after:40}, run("O G G E T T O",{b:1,sz:16,color:NAVY,spacing:30}));
+  b+=hairline(20,20,NAVY,6);
+  b+=para({before:60,after:200,align:"both"}, run(iOggetto(),{b:1,sz:22}));
+  b+=para({align:"both",after:120,line:276,indentFirst:480}, run(iIntro(),{sz:22}));
+  iSezioni().forEach(s=>{
+    // una riga di tabella senza bordi per pratica: cantSplit la tiene intera (Word e LibreOffice);
+    // titolo e introduzione della sezione stanno nella riga della prima pratica, cosi' non restano orfani
+    const testa=para({before:160,after:60}, run(s.lettera+".  ",{b:1,sz:22,color:NAVY})+run(s.titolo,{b:1,sz:22,color:NAVY}))+
+      para({align:"both",after:80,line:264}, run(s.intro,{sz:22}));
+    const righe=s.items.map((it,k)=>`<w:tr><w:trPr><w:cantSplit/></w:trPr><w:tc><w:tcPr><w:tcW w:w="${CW}" w:type="dxa"/>${noTcB}${mar(0,0,0,0)}</w:tcPr>`+
+      (k===0?testa:"")+
+      para({before:60,after:20,indentLeft:260}, run("•  ",{sz:22,color:NAVY})+run(it.t1,{b:1,sz:21}))+
+      para({after:40,indentLeft:520,align:"both",line:252}, run(it.t2,{sz:20}))+`</w:tc></w:tr>`).join("");
+    b+=`<w:tbl><w:tblPr><w:tblW w:w="${CW}" w:type="dxa"/>${NOB}<w:tblLayout w:type="fixed"/><w:tblCellMar><w:left w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid><w:gridCol w:w="${CW}"/></w:tblGrid>${righe}</w:tbl>`;
+  });
+  if(si) b+=para({before:160,after:80,align:"both",line:276}, run(si,{sz:22}));
+  if(ch) b+=para({after:80,align:"both",line:276}, run(ch,{sz:22}));
+  b+=para({before:40,after:120,align:"both",line:276}, run("Si resta a disposizione per eventuali ulteriori adempimenti o chiarimenti.",{sz:22}));
+  b+=para({after:120}, run("Cordialmente",{sz:22}));
+  b+=para({after:60}, run("Napoli, lì  "+iDataDoc(),{sz:21}));
+  b+=spacer(60);
+  b+=firmaRow(iEstLine(), RESP[iState.resp].role, RESP[iState.resp].nome);
+  return b;
+}
+function buildZipIrr(){ return packDocx(buildBodyIrr()); }
+
+// ---------- handlers ----------
+iEls.notaProt.oninput=()=>{ iState.notaProt=iEls.notaProt.value; iBuildPreview(); };
+iEls.notaData.onchange=()=>{ iState.notaData=iEls.notaData.value; iBuildPreview(); };
+iEls.notaOgg.oninput=()=>{ iState.notaOgg=iEls.notaOgg.value; iBuildPreview(); };
+iEls.ca.oninput=()=>{ iState.ca=iEls.ca.value; iBuildPreview(); };
+iEls.protNum.oninput=()=>{ iState.protNum=iEls.protNum.value; iBuildPreview(); };
+iEls.protData.onchange=()=>{ iState.protData=iEls.protData.value; iBuildPreview(); };
+iEls.dataInput.onchange=()=>{ iState.data=iEls.dataInput.value; iBuildPreview(); };
+$("iClearDate").onclick=()=>{ iState.data=""; iRender(); };
+iEls.estNome.oninput=()=>{ iState.estNome=iEls.estNome.value; iBuildPreview(); };
+iEls.estMatr.oninput=()=>{ iState.estMatr=iEls.estMatr.value; iBuildPreview(); };
+iEls.addBtn.onclick=()=>{ iState.righe.push(iNuovaRiga()); iRender(); };
+iEls.xlsx.onchange=async()=>{
+  const f=iEls.xlsx.files[0]; if(!f) return;
+  try{
+    iEls.parseInfo.style.color='var(--mut)'; iEls.parseInfo.textContent='Lettura in corso…';
+    const rows = /\.csv$/i.test(f.name) ? iReadCsv(await f.text()) : await iReadXlsx(await f.arrayBuffer());
+    const {righe, filtro}=iRigheDaTabella(rows);
+    if(!righe.length) throw new Error("nessuna pratica trovata nel file");
+    iState.righe=righe; iState.info="✓ "+f.name+filtro;
+    iEls.parseInfo.style.color='var(--ok)'; iRender();
+  }catch(e){ iEls.parseInfo.style.color='#e06a6a'; iEls.parseInfo.textContent='Errore: '+e.message; }
+  iEls.xlsx.value="";
+};
+iEls.genBtn.onclick=async()=>{
+  try{
+    iEls.status.style.color='var(--mut)'; iEls.status.textContent='Generazione in corso…';
+    const zip=buildZipIrr();
+    const blob=await zip.generateAsync({type:"blob",mimeType:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url;
+    a.download="Riscontro_SCIA_irricevibili_"+(iState.notaProt.trim()||"nota").replace(/[^\w\-]+/g,"_")+".docx";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1500);
+    iEls.status.style.color='var(--ok)'; iEls.status.textContent='✓ Word generato e scaricato.';
+  }catch(e){ iEls.status.style.color='#e06a6a'; iEls.status.textContent='Errore: '+e.message; }
+};
+
 // ---------- tab switching ----------
-const PANES={v:$("tab-verbali"), o:$("tab-ord"), n:$("tab-notifiche"), r:$("tab-report"), m:$("tab-movida"), l:$("tab-locali"), t:$("tab-trasm"), c:$("tab-com"), g:$("tab-rel"), a:$("tab-aria")};
-const TABS={v:$("tabBtnVerbali"), o:$("tabBtnOrd"), n:$("tabBtnNotifiche"), r:$("tabBtnReport"), m:$("tabBtnMovida"), l:$("tabBtnLocali"), t:$("tabBtnTrasm"), c:$("tabBtnCom"), g:$("tabBtnRel"), a:$("tabBtnAria")};
+const PANES={v:$("tab-verbali"), o:$("tab-ord"), n:$("tab-notifiche"), r:$("tab-report"), m:$("tab-movida"), l:$("tab-locali"), t:$("tab-trasm"), c:$("tab-com"), g:$("tab-rel"), a:$("tab-aria"), i:$("tab-irr")};
+const TABS={v:$("tabBtnVerbali"), o:$("tabBtnOrd"), n:$("tabBtnNotifiche"), r:$("tabBtnReport"), m:$("tabBtnMovida"), l:$("tabBtnLocali"), t:$("tabBtnTrasm"), c:$("tabBtnCom"), g:$("tabBtnRel"), a:$("tabBtnAria"), i:$("tabBtnIrr")};
 function showTab(k){ for(const key in PANES){ PANES[key].hidden=(key!==k); TABS[key].classList.toggle('active',key===k); } }
 Object.keys(TABS).forEach(k=>{ TABS[k].onclick=()=>showTab(k); });
 
@@ -3216,6 +3705,7 @@ cRender();
 oRender();
 gRender();
 aRender();
+iRender();
 </script>
 </body>
 </html>
