@@ -143,7 +143,7 @@
   </header>
   <div class="tabs">
     <button class="tab active" id="tabBtnVerbali">Verbali · Accertamenti commerciali</button>
-    <button class="tab" id="tabBtnOrd">Ord. Sindacale 872 · SUAP</button>
+    <button class="tab" id="tabBtnOrd">Ord. Sindacali 872 · 25 · SUAP</button>
     <button class="tab" id="tabBtnNotifiche">Notifiche · Trasmissione atti</button>
     <button class="tab" id="tabBtnReport">Report · Targhe straniere</button>
     <button class="tab" id="tabBtnMovida">Movida · Report servizi</button>
@@ -215,13 +215,18 @@
   </div><!-- /tab-verbali -->
 
   <div id="tab-ord" class="tabpane" hidden>
-    <p class="sub">Trasmissione al S.U.A.P. dei verbali per violazione dell'Ordinanza Sindacale n. 872 del 29/07/2026 (piazza Bellini / via Cisterna dell'Olio) — testo fisso; compili solo attività, verbale e punto violato.</p>
+    <p class="sub">Trasmissione al S.U.A.P. dei verbali per violazione delle Ordinanze Sindacali sulla movida — scegli l'ordinanza applicata (O.S. 872/2026 piazza Bellini oppure O.S. 25/2026 aree omogenee); testo fisso, compili solo attività, verbale e punto violato.</p>
     <div class="grid">
       <!-- CONTROLS ORD -->
       <div class="card">
         <h2>Dati trasmissione</h2>
 
         <div class="block" style="margin-top:0">
+          <div class="blab">Ordinanza applicata</div>
+          <div class="seg" id="oOrdSel"></div>
+        </div>
+
+        <div class="block">
           <div class="blab">Protocollo</div>
           <div class="row">
             <div class="f-grow"><div class="ftiny">Prot. n.</div><input type="text" id="oProtNum" placeholder="es. PG/2026/000000"></div>
@@ -2680,21 +2685,52 @@ cEls.genBtn.onclick=async()=>{
 };
 
 // =====================================================================
-// ================== ORDINANZA SINDACALE 872/2026 =====================
+// ============= ORDINANZE SINDACALI 872/2026 e 25/2026 =================
 // =====================================================================
 const ORD_DEST = { l1:"All\u2019Area Sviluppo Economico", l2:"Servizio SUAP", prot:"11.11.0.0.0" };
-const ORD_PUNTI = [
-  "divieto di vendita e somministrazione, anche per asporto, di bevande alcoliche e analcoliche dalle ore 22.30 alle ore 06.00 del giorno successivo",
-  "inosservanza dell\u2019orario di chiusura fissato, dalla domenica al gioved\u00EC, alle ore 01:00 del giorno successivo (oltre i 30 minuti di tolleranza per il ricovero delle attrezzature)",
-  "inosservanza dell\u2019orario di chiusura fissato, il venerd\u00EC ed il sabato, alle ore 02:00 del giorno successivo (oltre i 30 minuti di tolleranza per il ricovero delle attrezzature)",
-  "inosservanza dell\u2019orario di riapertura consentito",
-  "Altro (specifica)"
-];
+// Ordinanze selezionabili: l'ultima voce di "punti" e' sempre "Altro (specifica)".
+const ORDINANZE = {
+  os872:{
+    titolo:"O.S. n. 872 del 29/07/2026", sotto:"Piazza Bellini e zone limitrofe \u00B7 art. 50 TUEL e art. 9 L. 447/1995",
+    rif:"n. 872 del 29/07/2026", dal:"2026-07-29", al:"2026-11-29", file:"Ord872",
+    intro:"per violazione delle prescrizioni di cui all\u2019Ordinanza Sindacale n. 872 del 29 luglio 2026, adottata ai sensi dell\u2019art. 50 del D.Lgs. n. 267/2000 e dell\u2019art. 9 della Legge n. 447/1995, vigente dal 29 luglio al 29 novembre 2026 nell\u2019area di piazza Bellini e zone limitrofe, individuata nell\u2019Allegato 1 alla medesima ordinanza.",
+    nota:"",
+    codici:["asp","dg","vs","riap","altro"],
+    punti:[
+      "divieto di vendita e somministrazione, anche per asporto, di bevande alcoliche e analcoliche dalle ore 22.30 alle ore 06.00 del giorno successivo",
+      "inosservanza dell\u2019orario di chiusura fissato, dalla domenica al gioved\u00EC, alle ore 01:00 del giorno successivo (oltre i 30 minuti di tolleranza per il ricovero delle attrezzature)",
+      "inosservanza dell\u2019orario di chiusura fissato, il venerd\u00EC ed il sabato, alle ore 02:00 del giorno successivo (oltre i 30 minuti di tolleranza per il ricovero delle attrezzature)",
+      "inosservanza dell\u2019orario di riapertura consentito",
+      "Altro (specifica)"
+    ]
+  },
+  os25:{
+    titolo:"O.S. n. 25 del 13/10/2026", sotto:"Orari degli esercizi nelle aree omogenee della movida \u00B7 art. 50, c. 7, TUEL",
+    rif:"n. 25 del 13/10/2026", dal:"2026-10-16", al:"2026-11-16", file:"OS25",
+    intro:"per violazione delle prescrizioni di cui all\u2019Ordinanza Sindacale n. 25 del 13 ottobre 2026, adottata ai sensi dell\u2019art. 50, comma 7, del D.Lgs. n. 267/2000 per la regolamentazione degli orari degli esercizi commerciali nelle aree omogenee interessate dalla movida, vigente dal 16 ottobre al 16 novembre 2026 nelle aree omogenee individuate dalla medesima ordinanza.",
+    codici:["asp","dg","ven","sab","altro"],
+    nota:"Si rappresenta che la citata ordinanza prevede, in caso di reiterazione, la sospensione dell\u2019attivit\u00E0 ai sensi dell\u2019art. 10 del R.D. 18 giugno 1931, n. 773 (T.U.L.P.S.) per un periodo da 1 a 30 giorni e, successivamente, la revoca del titolo.",
+    punti:[
+      "divieto della vendita e della somministrazione per asporto di bevande alcoliche dalle ore 24.00 alle ore 06.00 del giorno seguente",
+      "inosservanza dell\u2019orario di chiusura fissato, dalla domenica al gioved\u00EC, alle ore 01:00 del giorno successivo",
+      "inosservanza dell\u2019orario di chiusura fissato, il venerd\u00EC, alle ore 02:00 del giorno successivo",
+      "inosservanza dell\u2019orario di chiusura fissato, il sabato, alle ore 03:00 del giorno successivo",
+      "Altro (specifica)"
+    ]
+  }
+};
+const ORD_ORDER = ["os25","os872"];
+function oOggiIso(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function oStato(k){ const o=ORDINANZE[k], t=oOggiIso(); return t<o.dal?"futura":(t>o.al?"scaduta":"vigente"); }
+// di default l'ordinanza piu' recente in vigore; se nessuna lo e', quella scaduta per ultima
+function oOrdDefault(){ const v=ORD_ORDER.filter(k=>oStato(k)==="vigente"); if(v.length) return v[0]; return ORD_ORDER.slice().sort((a,b)=>ORDINANZE[b].al.localeCompare(ORDINANZE[a].al))[0]; }
 
-let oState = { protNum:"", protData:"", resp:"autore", data:"", estNome:"Armando Ferrara", estMatr:"",
+let oState = { ord:oOrdDefault(), protNum:"", protData:"", resp:"autore", data:"", estNome:"Armando Ferrara", estMatr:"",
   righe:[{den:"",ind:"",vn:"",vd:"",punto:0,altro:""}] };
+function oOrd(){ return ORDINANZE[oState.ord]; }
 
 const oEls = {
+  ordSel:$("oOrdSel"),
   protNum:$("oProtNum"), protData:$("oProtData"), righe:$("oRighe"), addBtn:$("oAddBtn"),
   seg:$("oSeg"), dataInput:$("oDataInput"), estNome:$("oEstNome"), estMatr:$("oEstMatr"),
   page:$("oPage"), genBtn:$("oGenBtn"), status:$("oStatus")
@@ -2703,15 +2739,45 @@ const oEls = {
 function oProtDoc(){ const num=oState.protNum.trim()||"___________"; let date="____ / ____ / ________"; if(oState.protData){const [y,m,d]=oState.protData.split("-"); date=`${d}/${m}/${y}`;} return {num,date}; }
 function oDataDoc(){ if(!oState.data) return "____ / ____ / ________"; const [y,m,d]=oState.data.split("-"); return `${d}/${m}/${y}`; }
 function oDataV(v){ if(!v) return "__/__/____"; const [y,m,d]=v.split("-"); return `${d}/${m}/${y}`; }
-function oPuntoTxt(r){ return r.punto===ORD_PUNTI.length-1 ? (r.altro.trim()||"\u2026") : ORD_PUNTI[r.punto]; }
+function oAltroIdx(){ return oOrd().punti.length-1; }
+function oPuntoTxt(r){ return r.punto===oAltroIdx() ? (r.altro.trim()||"\u2026") : oOrd().punti[r.punto]; }
 function oEstLine(){ const n=oState.estNome.trim()||"_______________"; const m=oState.estMatr.trim(); return "Estensore: A.C. "+n+(m?"  \u00B7  matr. "+m:""); }
-function oOggetto(){ const uno=oState.righe.length===1; return "Trasmissione "+(uno?"verbale":"verbali")+" di accertamento per violazione dell\u2019Ordinanza Sindacale n. 872 del 29/07/2026 \u2013 provvedimenti accessori di competenza"; }
+function oOggetto(){ const uno=oState.righe.length===1; return "Trasmissione "+(uno?"verbale":"verbali")+" di accertamento per violazione dell\u2019Ordinanza Sindacale "+oOrd().rif+" \u2013 provvedimenti accessori di competenza"; }
 function oIntro(){
   const uno = oState.righe.length===1;
   const testa = uno
     ? "Si trasmette, per il seguito di competenza, il verbale di accertamento e contestazione elevato da personale di questa U.O. nei confronti dell\u2019esercizio di seguito indicato"
     : "Si trasmettono, per il seguito di competenza, i verbali di accertamento e contestazione elevati da personale di questa U.O. nei confronti degli esercizi di seguito indicati";
-  return testa+", per violazione delle prescrizioni di cui all\u2019Ordinanza Sindacale n. 872 del 29 luglio 2026, adottata ai sensi dell\u2019art. 50 del D.Lgs. n. 267/2000 e dell\u2019art. 9 della Legge n. 447/1995, vigente dal 29 luglio al 29 novembre 2026 nell\u2019area di piazza Bellini e zone limitrofe, individuata nell\u2019Allegato 1 alla medesima ordinanza.";
+  return testa+", "+oOrd().intro;
+}
+// verbali con data fuori dal periodo di vigenza dell'ordinanza scelta
+function oFuoriVigenza(){ const o=oOrd(); return oState.righe.map((r,i)=>({r,i})).filter(x=>x.r.vd && (x.r.vd<o.dal || x.r.vd>o.al)); }
+function oBuildOrdSel(){
+  oEls.ordSel.innerHTML='';
+  ORD_ORDER.forEach(k=>{
+    const o=ORDINANZE[k], on=oState.ord===k, st=oStato(k);
+    const badge = st==="vigente" ? `<span style="color:var(--ok)">in vigore fino al ${oDataV(o.al)}</span>`
+      : st==="scaduta" ? `<span style="color:#e0b341">scaduta il ${oDataV(o.al)}</span>`
+      : `<span style="color:var(--mut)">in vigore dal ${oDataV(o.dal)}</span>`;
+    const el=document.createElement('div');
+    el.className='opt2'+(on?' on':'');
+    el.innerHTML=`<div class="radio"></div><div class="lab2">${o.titolo}<small>${o.sotto}</small><small>${badge}</small></div>`;
+    el.onclick=()=>{
+      if(oState.ord===k) return;
+      // riporta ogni verbale sul punto di uguale significato nella nuova ordinanza
+      const vecchi=oState.righe.map(r=>oOrd().codici[r.punto]);
+      oState.ord=k;
+      const affini={ven:["ven","vs"], sab:["sab","vs"], vs:["vs","ven"]};
+      oState.righe.forEach((r,i)=>{ const j=(affini[vecchi[i]]||[vecchi[i]]).map(c=>o.codici.indexOf(c)).find(x=>x>=0); r.punto = j===undefined ? 0 : j; });
+      oRender();
+    };
+    oEls.ordSel.appendChild(el);
+  });
+  const fv=oFuoriVigenza(), w=document.createElement('div');
+  w.className='ftiny'; w.style.cssText='margin-top:8px;color:#e0b341';
+  if(oStato(oState.ord)==="scaduta") w.textContent="\u26A0 L\u2019ordinanza scelta \u00E8 scaduta il "+oDataV(oOrd().al)+": usala solo per verbali elevati durante la vigenza.";
+  if(fv.length) w.textContent=(w.textContent?w.textContent+" ":"")+"\u26A0 Verbale "+fv.map(x=>x.i+1).join(", ")+" con data fuori dal periodo di vigenza ("+oDataV(oOrd().dal)+" \u2013 "+oDataV(oOrd().al)+").";
+  if(w.textContent) oEls.ordSel.appendChild(w);
 }
 
 function oBuildRighe(){
@@ -2719,7 +2785,7 @@ function oBuildRighe(){
   oState.righe.forEach((r,i)=>{
     const w=document.createElement('div');
     w.style.cssText="border:1px solid var(--line);border-radius:9px;padding:12px;margin-bottom:10px";
-    const opts=ORD_PUNTI.map((p,j)=>`<option value="${j}"${r.punto===j?' selected':''}>${j+1}. ${p.length>70?p.slice(0,70)+'\u2026':p}</option>`).join('');
+    const opts=oOrd().punti.map((p,j)=>`<option value="${j}"${r.punto===j?' selected':''}>${j+1}. ${p.length>70?p.slice(0,70)+'\u2026':p}</option>`).join('');
     w.innerHTML=`
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <div class="ftiny" style="margin:0;color:var(--accent);font-weight:600">Verbale ${i+1}</div>
@@ -2733,14 +2799,14 @@ function oBuildRighe(){
       </div>
       <div class="ftiny" style="margin-top:8px">Punto dell'ordinanza violato</div>
       <select class="o-punto" data-i="${i}">${opts}</select>
-      ${r.punto===ORD_PUNTI.length-1?`<input type="text" class="o-altro" data-i="${i}" value="${r.altro.replace(/"/g,'&quot;')}" placeholder="specifica la violazione" style="margin-top:8px">`:''}
+      ${r.punto===oAltroIdx()?`<input type="text" class="o-altro" data-i="${i}" value="${r.altro.replace(/"/g,'&quot;')}" placeholder="specifica la violazione" style="margin-top:8px">`:''}
     `;
     oEls.righe.appendChild(w);
   });
   oEls.righe.querySelectorAll('.o-den').forEach(el=>el.oninput=()=>{ oState.righe[+el.dataset.i].den=el.value; oBuildPreview(); });
   oEls.righe.querySelectorAll('.o-ind').forEach(el=>el.oninput=()=>{ oState.righe[+el.dataset.i].ind=el.value; oBuildPreview(); });
   oEls.righe.querySelectorAll('.o-vn').forEach(el=>el.oninput=()=>{ oState.righe[+el.dataset.i].vn=el.value; oBuildPreview(); });
-  oEls.righe.querySelectorAll('.o-vd').forEach(el=>el.onchange=()=>{ oState.righe[+el.dataset.i].vd=el.value; oBuildPreview(); });
+  oEls.righe.querySelectorAll('.o-vd').forEach(el=>el.onchange=()=>{ oState.righe[+el.dataset.i].vd=el.value; oBuildPreview(); oBuildOrdSel(); });
   oEls.righe.querySelectorAll('.o-altro').forEach(el=>el.oninput=()=>{ oState.righe[+el.dataset.i].altro=el.value; oBuildPreview(); });
   oEls.righe.querySelectorAll('.o-punto').forEach(el=>el.onchange=()=>{ oState.righe[+el.dataset.i].punto=+el.value; oRender(); });
   oEls.righe.querySelectorAll('.x-del').forEach(el=>el.onclick=()=>{ oState.righe.splice(+el.dataset.i,1); oRender(); });
@@ -2783,6 +2849,7 @@ function oBuildPreview(){
     <div class="ogg-title">${oOggetto()}</div>
     <div class="body-p">${oIntro()}</div>
     ${oRigheHtml()}
+    ${oOrd().nota?`<div class="body-p" style="margin-top:10px">${oOrd().nota}</div>`:''}
     <div class="body-line" style="margin-top:10px">Si resta a disposizione per eventuali ulteriori adempimenti o chiarimenti.</div>
     <div class="body-line">Cordialmente</div>
     <div class="data">Napoli, lì ${oDataDoc()}</div>
@@ -2797,7 +2864,7 @@ function oBuildPreview(){
   `;
 }
 function oRender(){
-  oBuildRighe(); oBuildSeg(); oBuildPreview();
+  oBuildOrdSel(); oBuildRighe(); oBuildSeg(); oBuildPreview();
   oEls.protNum.value=oState.protNum; oEls.protData.value=oState.protData;
   oEls.dataInput.value=oState.data; oEls.estNome.value=oState.estNome; oEls.estMatr.value=oState.estMatr;
   oEls.status.textContent='';
@@ -2825,6 +2892,7 @@ function buildBodyOrd(){
     b+=para({before:60,after:30,indentLeft:260}, run("- "+(r.den.trim()||"\u2026")+(r.ind.trim()?(" \u2014 "+r.ind.trim()):""),{b:1,sz:22}));
     b+=para({after:60,indentLeft:520,align:"both",line:264}, run("Verbale n. "+(r.vn.trim()||"____")+" del "+oDataV(r.vd)+" \u2014 "+oPuntoTxt(r)+".",{sz:21}));
   });
+  if(oOrd().nota) b+=para({align:"both",before:80,after:120,line:276}, run(oOrd().nota,{sz:22}));
   b+=para({align:"both",after:120,line:276}, run("Si resta a disposizione per eventuali ulteriori adempimenti o chiarimenti.",{sz:22}));
   b+=para({after:120}, run("Cordialmente",{sz:22}));
   b+=para({after:60}, run("Napoli, l\u00EC  "+oDataDoc(),{sz:21}));
@@ -2849,7 +2917,7 @@ oEls.genBtn.onclick=async()=>{
     const blob=await zip.generateAsync({type:"blob",mimeType:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"});
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a'); a.href=url;
-    a.download="Trasmissione_SUAP_Ord872.docx";
+    a.download="Trasmissione_SUAP_"+oOrd().file+".docx";
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(()=>URL.revokeObjectURL(url),1500);
     oEls.status.style.color='var(--ok)'; oEls.status.textContent='✓ Word generato e scaricato.';
