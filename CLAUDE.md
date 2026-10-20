@@ -22,7 +22,12 @@ Strumento dell'Ufficio di Polizia Amministrativa della U.O. San Lorenzo (Polizia
   - un pulsante `tabBtn…`, registrato in `PANES`/`TABS` in fondo allo script;
   - un prefisso di una lettera per id e funzioni. Per esempio `w` è il report O.S. 25: `wState`, `wRender`, `wBuildPreview`, `buildBodyOs25`.
   - Di solito ogni tab ha anteprima HTML (`…BuildPreview`) e generatore Word (`buildBody…`) affiancati.
-- **Rubrica e-grammata.** `RUBRICA`, in cima allo script, è condivisa da tutte le tab. Gli uffici aggiunti a mano restano nel `localStorage` del computer.
+- **Rubrica e-grammata.** `RUBRICA`, in cima allo script, è condivisa da tutte le tab. Contiene:
+  - gli uffici abituali (`fav`), le cui intestazioni prevalgono;
+  - l'estratto e-grammata `EGR_DATA`, convertito in intestazioni da `egrVoce()`;
+  - gli uffici aggiunti a mano, che restano nel `localStorage` del computer.
+
+  Per aggiornare l'estratto, sostituisci l'array `EGR_DATA` con il `const D=[...]` del nuovo `Rubrica_Egrammata.html` e aggiorna `EGR_DATA_DEL`.
   - Nell'anteprima e nel Word i destinatari aggiuntivi si stampano con `xDestHtml(tab)` e `xDestXml(tab)`.
   - Una tab nuova va aggiunta a `X_TABS` e `X_REFRESH`.
 - **Stile.** Si seguono i modelli già presenti: testata con stemmi, destinatari a destra con «INDIRIZZO DI PROTOCOLLO», barra del protocollo, «O G G E T T O», firma del Responsabile di Reparto con l'estensore a sinistra.
