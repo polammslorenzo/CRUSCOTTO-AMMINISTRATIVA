@@ -109,9 +109,9 @@
   input[type=date]:hover{border-color:var(--navy)}
   .cleardate{background:none;border:0;color:var(--mut);font-size:12px;cursor:pointer;margin-top:7px;padding:0;text-decoration:underline}
   .cleardate:hover{color:var(--txt)}
-  input[type=text]{background:var(--panel2);border:1px solid var(--line);color:var(--txt);padding:11px 13px;border-radius:9px;font-family:inherit;font-size:14px;width:100%}
-  input[type=text]:hover{border-color:var(--navy)}
-  input[type=text]:focus{outline:none;border-color:var(--accent)}
+  input[type=text],input[type=number]{background:var(--panel2);border:1px solid var(--line);color:var(--txt);padding:11px 13px;border-radius:9px;font-family:inherit;font-size:14px;width:100%;color-scheme:dark}
+  input[type=text]:hover,input[type=number]:hover{border-color:var(--navy)}
+  input[type=text]:focus,input[type=number]:focus{outline:none;border-color:var(--accent)}
   .row{display:flex;gap:10px}
   .row .f-grow{flex:1}
   .row .f-matr{flex:0 0 150px}
@@ -151,6 +151,7 @@
     <button class="tab" id="tabBtnTrasm">Trasmissioni · Lettere</button>
     <button class="tab" id="tabBtnCom">Comunicati · Controlli</button>
     <button class="tab" id="tabBtnRel">Relazioni · Generiche</button>
+    <button class="tab" id="tabBtnOs25">Report O.S. 25 · Movida</button>
     <button class="tab" id="tabBtnAria">O.D. 1766 · Qualità dell'aria</button>
     <button class="tab" id="tabBtnIrr">SUAP · SCIA irricevibili</button>
   </div>
@@ -837,6 +838,107 @@
       </div>
     </div>
   </div><!-- /tab-rel -->
+
+  <div id="tab-os25" class="tabpane" hidden>
+    <p class="sub">Report settimanale O.S. n. 25 del 13/10/2026 (ORDSI/2026/1123) all'Ufficio Controllo di Gestione, come richiesto con nota PG/2026/1120594 del 19/10/2026 — da trasmettere ogni lunedì fino al 16/11/2026: servizi, personale, controlli e sanzioni per tipologia.</p>
+    <div class="grid">
+      <!-- CONTROLS OS25 -->
+      <div class="card">
+        <h2>Dati report settimanale</h2>
+
+        <div class="block" style="margin-top:0">
+          <div class="blab">Protocollo</div>
+          <div class="row">
+            <div class="f-grow"><div class="ftiny">Prot. n.</div><input type="text" id="wProtNum" placeholder="es. PG/2026/000000"></div>
+            <div class="f-matr"><div class="ftiny">del</div><input type="date" id="wProtData" style="padding:10px 8px"></div>
+          </div>
+        </div>
+
+        <div class="block">
+          <div class="blab">Settimana di riferimento</div>
+          <div class="row">
+            <div class="f-grow"><div class="ftiny">dal</div><input type="date" id="wDal" style="padding:10px 8px"></div>
+            <div class="f-grow"><div class="ftiny">al</div><input type="date" id="wAl" style="padding:10px 8px"></div>
+          </div>
+          <div style="display:flex;gap:16px"><button class="cleardate" id="wPrev">← Settimana precedente</button><button class="cleardate" id="wNext">Settimana successiva →</button></div>
+          <div class="ftiny" id="wPerHint" style="margin-top:8px;color:var(--ok)"></div>
+        </div>
+
+        <div class="block">
+          <div class="blab">Servizi espletati</div>
+          <div class="row">
+            <div class="f-matr"><div class="ftiny">N. servizi</div><input type="number" id="wServ" min="0" placeholder="es. 3"></div>
+            <div class="f-grow"><div class="ftiny">Giornate / fasce orarie (facolt.)</div><input type="text" id="wServDet" placeholder="es. 16, 17 e 18 ottobre, fascia 22:00 – 04:00"></div>
+          </div>
+        </div>
+
+        <div class="block">
+          <div class="blab">Personale impiegato</div>
+          <div class="row">
+            <div class="f-matr"><div class="ftiny">N. unità</div><input type="number" id="wPers" min="0" placeholder="es. 12"></div>
+            <div class="f-grow"><div class="ftiny">Dettaglio (facolt.)</div><input type="text" id="wPersDet" placeholder="es. 2 ufficiali e 10 agenti, con n. 3 autovetture"></div>
+          </div>
+        </div>
+
+        <div class="block">
+          <div class="blab">Controlli effettuati</div>
+          <div class="ftiny">Esercizi controllati nelle aree omogenee</div>
+          <input type="number" id="wCtrl" min="0" placeholder="es. 25">
+        </div>
+
+        <div class="block">
+          <div class="blab">Sanzioni O.S. 25/2026 (art. 7-bis TUEL)</div>
+          <div id="wSanzOs"></div>
+        </div>
+
+        <div class="block">
+          <div class="blab">Altre sanzioni adottate (facolt.)</div>
+          <div class="ftiny">Altre violazioni accertate nel corso dei servizi (es. occupazione abusiva di suolo pubblico, C.d.S., art. 650 c.p.)</div>
+          <div id="wAltre"></div>
+          <button class="cleardate" id="wAddAltra">+ Aggiungi tipologia</button>
+          <div class="ftiny" id="wTotHint" style="margin-top:8px;color:var(--ok)"></div>
+        </div>
+
+        <div class="block">
+          <div class="blab">Per conoscenza</div>
+          <label style="display:flex;gap:8px;align-items:center;cursor:pointer;font-size:13px;color:var(--txt)">
+            <input type="checkbox" id="wPc" style="width:16px;height:16px;accent-color:var(--accent)">
+            e, p.c., al Dirigente del Servizio Coordinamento Strategico Operativo
+          </label>
+        </div>
+
+        <div class="block">
+          <div class="blab">Firmatario</div>
+          <div class="seg" id="wSeg"></div>
+        </div>
+
+        <div class="block">
+          <div class="blab">Data del documento</div>
+          <input type="date" id="wDataInput">
+          <button class="cleardate" id="wClearDate">Lascia in bianco</button>
+        </div>
+
+        <div class="block">
+          <div class="blab">Estensore</div>
+          <div class="row">
+            <div class="f-grow"><div class="ftiny">Nome (A.C.)</div><input type="text" id="wEstNome" placeholder="Nome Cognome"></div>
+            <div class="f-matr"><div class="ftiny">Matricola (facolt.)</div><input type="text" id="wEstMatr" placeholder="0000"></div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="gen" id="wGenBtn">⬇ Genera Word (.docx)</button>
+          <div class="status" id="wStatus"></div>
+        </div>
+      </div>
+
+      <!-- PREVIEW OS25 -->
+      <div class="card">
+        <h2>Anteprima</h2>
+        <div class="preview-wrap"><div class="page" id="wPage"></div></div>
+      </div>
+    </div>
+  </div><!-- /tab-os25 -->
 
   <div id="tab-aria" class="tabpane" hidden>
     <p class="sub">Trasmissione quindicinale delle risultanze dei controlli sulle limitazioni alla circolazione — O.D. 1766 del 15/10/2026 (nota PG/2026/1106982), vigenza 19/10/2026 – 31/03/2027 — dicitura fissa; cambiano solo periodo, controlli e verbali.</p>
@@ -3179,8 +3281,10 @@ function aIso(dt){ return dt.toISOString().slice(0,10); }
 function aAdd(dt,n){ return new Date(dt.getTime()+n*86400000); }
 function aFeriale(dt){ const g=dt.getUTCDay(); return g!==0 && g!==6; }
 function aGiorno(dt){ const g=dt.getUTCDate(); return g===1?"1°":String(g); }
-function aPeriodo(){
-  const a=aParse(aState.dal), b=aParse(aState.al);
+function aPeriodo(){ return aPeriodoDa(aState.dal, aState.al); }
+// "dal 2 al 6 Marzo 2026", "dal 30 Marzo al 3 Aprile 2026", ... (usata anche dal report O.S. 25)
+function aPeriodoDa(dal, al){
+  const a=aParse(dal), b=aParse(al);
   if(!a && !b) return "dal … al …";
   if(!a) return "dal … al "+aGiorno(b)+" "+MESI_IT[b.getUTCMonth()]+" "+b.getUTCFullYear();
   if(!b) return "dal "+aGiorno(a)+" "+MESI_IT[a.getUTCMonth()]+" "+a.getUTCFullYear()+" al …";
@@ -3340,6 +3444,239 @@ aEls.genBtn.onclick=async()=>{
     setTimeout(()=>URL.revokeObjectURL(url),1500);
     aEls.status.style.color='var(--ok)'; aEls.status.textContent='✓ Word generato e scaricato.';
   }catch(e){ aEls.status.style.color='#e06a6a'; aEls.status.textContent='Errore: '+e.message; }
+};
+
+// =====================================================================
+// ============== REPORT SETTIMANALE O.S. 25/2026 · MOVIDA =============
+// =====================================================================
+// Richiesto con nota PG/2026/1120594 del 19/10/2026 (Servizio C.S.O.): ogni
+// lunedi' del periodo di vigenza, all'Ufficio Controllo di Gestione.
+const W_NOTA = "PG/2026/1120594 del 19/10/2026";
+const W_DEST = { r1:"Al Responsabile", r2:"Ufficio Controllo di Gestione", r3:"", prot:"21.13.1.0.0" };
+const W_PC = REPORT_DEST[1]; // Dirigente Servizio Coordinamento Strategico Operativo
+const W_OS = ORDINANZE.os25;
+const W_INIZIO = W_OS.dal, W_FINE = W_OS.al;
+
+function wLunedi(dt){ return aAdd(dt, -((dt.getUTCDay()+6)%7)); }
+function wSettimana(lun){ // settimana lun-dom ritagliata sulla vigenza
+  const ini=aParse(W_INIZIO), fin=aParse(W_FINE);
+  let a=lun, b=aAdd(lun,6); if(a<ini) a=ini; if(b>fin) b=fin;
+  return {dal:aIso(a), al:aIso(b)};
+}
+// di default l'ultima settimana conclusa prima di oggi
+function wPeriodoDefault(){
+  const oggi=aParse(oOggiIso()), ini=aParse(W_INIZIO), fin=aParse(W_FINE);
+  let lun=aAdd(wLunedi(oggi),-7);
+  if(aAdd(lun,6)<ini) lun=wLunedi(ini);
+  if(lun>fin) lun=wLunedi(fin);
+  return wSettimana(lun);
+}
+const W_PER0 = wPeriodoDefault();
+let wState = { protNum:"", protData:"", dal:W_PER0.dal, al:W_PER0.al, serv:"", servDet:"", pers:"", persDet:"", ctrl:"",
+  sanzOs:["","","",""], altre:[], pc:true, resp:"autore", data:"", estNome:"Armando Ferrara", estMatr:"" };
+
+const wEls = {
+  protNum:$("wProtNum"), protData:$("wProtData"), dal:$("wDal"), al:$("wAl"), perHint:$("wPerHint"),
+  serv:$("wServ"), servDet:$("wServDet"), pers:$("wPers"), persDet:$("wPersDet"), ctrl:$("wCtrl"),
+  sanzOs:$("wSanzOs"), altre:$("wAltre"), addAltra:$("wAddAltra"), totHint:$("wTotHint"), pc:$("wPc"),
+  seg:$("wSeg"), dataInput:$("wDataInput"), estNome:$("wEstNome"), estMatr:$("wEstMatr"),
+  page:$("wPage"), genBtn:$("wGenBtn"), status:$("wStatus")
+};
+
+function wProtDoc(){ const num=wState.protNum.trim()||"___________"; let date="____ / ____ / ________"; if(wState.protData){const [y,m,d]=wState.protData.split("-"); date=`${d}/${m}/${y}`;} return {num,date}; }
+function wDataDoc(){ if(!wState.data) return "____ / ____ / ________"; const [y,m,d]=wState.data.split("-"); return `${d}/${m}/${y}`; }
+function wEstLine(){ const n=wState.estNome.trim()||"_______________"; const m=wState.estMatr.trim(); return "Estensore: A.C. "+n+(m?"  ·  matr. "+m:""); }
+function wN(v){ const n=parseInt(v,10); return isNaN(n)||n<0?0:n; }
+function wNum(v){ return String(v).trim()===""?"…":String(v).trim(); }
+function wUno(v){ return String(v).trim()==="1"; }
+function wGiornoSolo(){ return wState.dal && wState.dal===wState.al; }
+function wPeriodo(){ if(wGiornoSolo()){ const d=aParse(wState.dal); return "del "+aGiorno(d)+" "+MESI_IT[d.getUTCMonth()]+" "+d.getUTCFullYear(); } return aPeriodoDa(wState.dal, wState.al); }
+function wOggetto(){ return "ORDSI/2026/1123 – Ordinanza Sindacale n. 25 del 13 ottobre 2026 – Report settimanale "+wPeriodo()+" – Rif. nota "+W_NOTA; }
+function wIntro(){
+  return "In riferimento alla nota "+W_NOTA+", concernente l’Ordinanza Sindacale n. 25 del 13 ottobre 2026 (ORDSI/2026/1123), adottata ai sensi dell’art. 50, comma 7, del D.Lgs. n. 267/2000 per la regolamentazione degli orari degli esercizi commerciali nelle aree omogenee interessate dal fenomeno della movida, si trasmette il report settimanale riepilogativo delle attività svolte da questa Unità Operativa "+(wGiornoSolo()?"nella giornata ":"nel periodo ")+wPeriodo()+".";
+}
+function wAttivita(){
+  const sd=wState.servDet.trim(), pd=wState.persDet.trim();
+  return "Nel suddetto periodo "+(wUno(wState.serv)?"è stato espletato n. 1 servizio":"sono stati espletati n. "+wNum(wState.serv)+" servizi")+(sd?(" ("+sd+")"):"")+
+    ", con l’impiego complessivo di n. "+wNum(wState.pers)+" "+"unità"+" di personale"+(pd?(" ("+pd+")"):"")+
+    ", nel corso "+(wUno(wState.serv)?"del quale ":"dei quali ")+(wUno(wState.ctrl)?"è stato effettuato n. 1 controllo":"sono stati effettuati n. "+wNum(wState.ctrl)+" controlli")+
+    " presso esercizi commerciali e pubblici esercizi ricadenti nelle aree omogenee individuate dall’ordinanza.";
+}
+function wOsVoce(i){ const t=W_OS.punti[i]; return /^divieto/i.test(t)?("violazione del "+t):t; }
+function wTotOs(){ return wState.sanzOs.reduce((s,v)=>s+wN(v),0); }
+function wAltreValide(){ return wState.altre.filter(a=>a.desc.trim() && wN(a.n)>0); }
+function wTotAltre(){ return wAltreValide().reduce((s,a)=>s+wN(a.n),0); }
+function wSanzioni(){ // {frase, gruppi:[{titolo, voci:[]}]}
+  const tot=wTotOs()+wTotAltre();
+  if(!tot) return {frase:"All’esito dei controlli non sono state riscontrate violazioni.", gruppi:[]};
+  const g=[];
+  const os=wState.sanzOs.map((v,i)=>({n:wN(v),i})).filter(x=>x.n>0);
+  if(os.length) g.push({ titolo:"violazioni dell’O.S. n. 25/2026, sanzionate ai sensi dell’art. 7-bis del D.Lgs. n. 267/2000 (n. "+wTotOs()+"):",
+    voci:os.map(x=>"n. "+x.n+" per "+wOsVoce(x.i)) });
+  const al=wAltreValide();
+  if(al.length) g.push({ titolo:"altre violazioni accertate (n. "+wTotAltre()+"):", voci:al.map(a=>"n. "+wN(a.n)+" per "+a.desc.trim()) });
+  return { frase:"All’esito dei controlli "+(tot===1?"è stata elevata n. 1 sanzione":"sono state elevate complessivamente n. "+tot+" sanzioni")+", così suddivise per tipologia:", gruppi:g };
+}
+function wDestList(){ const l=[{d:W_DEST,pc:false}]; if(wState.pc) l.push({d:W_PC,pc:true}); return l; }
+
+// ---------- preview ----------
+function wBuildSeg(){
+  wEls.seg.innerHTML='';
+  Object.keys(RESP_MENU).forEach(k=>{
+    const r=RESP_MENU[k], on=wState.resp===k;
+    const o=document.createElement('div');
+    o.className='opt2'+(on?' on':'');
+    o.innerHTML=`<div class="radio"></div><div class="lab2">${r.titolo}<small>${r.ruolo}</small></div>`;
+    o.onclick=()=>{ wState.resp=k; wRender(); };
+    wEls.seg.appendChild(o);
+  });
+}
+function wBuildSanz(){
+  wEls.sanzOs.innerHTML=W_OS.punti.slice(0,4).map((t,i)=>`
+    <div class="row" style="margin-top:${i?8:0}px;align-items:center">
+      <div style="flex:0 0 80px"><input type="number" class="w-os" data-i="${i}" min="0" value="${esc(String(wState.sanzOs[i]))}" placeholder="0"></div>
+      <div class="ftiny" style="flex:1;margin:0">${i+1}. ${esc(t)}</div>
+    </div>`).join('');
+  wEls.sanzOs.querySelectorAll('.w-os').forEach(el=>el.oninput=()=>{ wState.sanzOs[+el.dataset.i]=el.value; wBuildPreview(); wHints(); });
+  wEls.altre.innerHTML=wState.altre.map((a,i)=>`
+    <div class="row" style="margin-top:8px;align-items:flex-end">
+      <div class="f-grow"><div class="ftiny">Tipologia</div><input type="text" class="w-ad" data-i="${i}" value="${esc(a.desc).replace(/"/g,'&quot;')}" placeholder="es. occupazione abusiva di suolo pubblico (art. 20 C.d.S.)"></div>
+      <div style="flex:0 0 80px"><div class="ftiny">N.</div><input type="number" class="w-an" data-i="${i}" min="0" value="${esc(String(a.n))}"></div>
+      <span class="w-del" data-i="${i}" style="cursor:pointer;color:var(--mut);font-weight:700;padding:0 0 12px">✕</span>
+    </div>`).join('');
+  wEls.altre.querySelectorAll('.w-ad').forEach(el=>el.oninput=()=>{ wState.altre[+el.dataset.i].desc=el.value; wBuildPreview(); wHints(); });
+  wEls.altre.querySelectorAll('.w-an').forEach(el=>el.oninput=()=>{ wState.altre[+el.dataset.i].n=el.value; wBuildPreview(); wHints(); });
+  wEls.altre.querySelectorAll('.w-del').forEach(el=>el.onclick=()=>{ wState.altre.splice(+el.dataset.i,1); wRender(); });
+}
+function wHints(){
+  const a=aParse(wState.dal), b=aParse(wState.al);
+  let t="", warn=false;
+  if(a && b){
+    if(b<a){ t="⚠ La data «al» precede la data «dal»"; warn=true; }
+    else if(wState.dal<W_INIZIO || wState.al>W_FINE){ t="⚠ Periodo fuori vigenza dell’O.S. 25 (16/10/2026 – 16/11/2026)"; warn=true; }
+    else { const lun=aAdd(wLunedi(b),7); t="Report da trasmettere lunedì "+aIso(lun).split("-").reverse().join("/"); }
+  }
+  wEls.perHint.textContent=t; wEls.perHint.style.color=warn?"#e0b341":"var(--ok)";
+  const tot=wTotOs()+wTotAltre();
+  wEls.totHint.textContent=tot?("Totale sanzioni: "+tot+" (O.S. 25: "+wTotOs()+", altre: "+wTotAltre()+")"):"";
+}
+function wBuildPreview(){
+  const p=wProtDoc(), h=(s)=>esc(String(s)), s=wSanzioni();
+  const dest=wDestList().map(x=>`${x.pc?'<div style="font-style:italic;margin-top:4px">e, p.c.</div>':''}<div style="margin-bottom:8px"><div>${x.d.r1}</div><div><b>${x.d.r2}</b></div>${x.d.r3?`<div style="font-style:italic">${x.d.r3}</div>`:''}<div style="font-size:9px;color:#6B7280;letter-spacing:.04em">INDIRIZZO DI PROTOCOLLO ${x.d.prot}</div></div>`).join('');
+  wEls.page.innerHTML=`
+    <div class="pg-head">
+      <img class="logoimg" src="data:image/png;base64,${IMG1_B64}" alt="Stemma">
+      <div class="banner">
+        <div class="t1">C O M U N E&nbsp; D I&nbsp; N A P O L I&nbsp; · &nbsp;P O L I Z I A&nbsp; M U N I C I P A L E</div>
+        <div class="t2">Area Sicurezza</div>
+        <div class="t3">Servizio Coordinamento Strategico Operativo</div>
+        <div class="t4">Unità Operativa San Lorenzo · Ufficio di Polizia Amministrativa</div>
+      </div>
+      <img class="logoimg" src="data:image/png;base64,${IMG2_B64}" alt="Logo P.M.">
+    </div>
+    <hr class="rule">
+    <div class="dest" style="margin-top:14px">${dest}</div>
+    <div class="proto" style="margin-top:12px"><div class="bar"></div><div class="pcontent">
+      <div>${p.num==="___________"?'<b>Prot. n.</b> <span class="muted">___________</span>':'<b>Prot. n.</b> <b>'+h(p.num)+'</b>'} &nbsp;&nbsp;<b>del</b> ${p.date.includes("_")?'<span class="muted">__/__/____</span>':'<b>'+p.date+'</b>'}</div>
+    </div></div>
+    <div class="ogg-label" style="margin-top:16px">O&nbsp;G&nbsp;G&nbsp;E&nbsp;T&nbsp;T&nbsp;O</div>
+    <hr class="ogg-rule">
+    <div class="ogg-title">${h(wOggetto())}</div>
+    <div class="body-p">${h(wIntro())}</div>
+    <div class="body-p" style="margin-top:8px">${h(wAttivita())}</div>
+    <div class="body-p" style="margin-top:8px">${h(s.frase)}</div>
+    ${s.gruppi.map(g=>`<div class="body-line" style="margin-top:8px;margin-left:14px">–&nbsp;&nbsp;${h(g.titolo)}</div>${g.voci.map(v=>`<div class="body-line" style="margin-top:4px;margin-left:34px">⇒&nbsp;&nbsp;${h(v)} ;</div>`).join('')}`).join('')}
+    <div class="body-line" style="margin-top:12px">Si resta a disposizione per eventuali ulteriori adempimenti o chiarimenti.</div>
+    <div class="body-line">Cordialmente</div>
+    <div class="data">Napoli, lì ${wDataDoc()}</div>
+    <div class="sig-row">
+      <div class="est-l">${h(wEstLine())}</div>
+      <div class="firm-r">
+        <div class="role">${RESP[wState.resp].role}</div>
+        <div class="nm">${RESP[wState.resp].nome}</div>
+        <div class="disc">Firma autografa ai sensi dell’art. 3 D.Lgs. 39/93</div>
+      </div>
+    </div>
+  `;
+}
+function wRender(){
+  wBuildSeg(); wBuildSanz(); wBuildPreview(); wHints();
+  wEls.protNum.value=wState.protNum; wEls.protData.value=wState.protData;
+  wEls.dal.value=wState.dal; wEls.al.value=wState.al;
+  wEls.serv.value=wState.serv; wEls.servDet.value=wState.servDet; wEls.pers.value=wState.pers; wEls.persDet.value=wState.persDet; wEls.ctrl.value=wState.ctrl;
+  wEls.pc.checked=wState.pc;
+  wEls.dataInput.value=wState.data; wEls.estNome.value=wState.estNome; wEls.estMatr.value=wState.estMatr;
+  wEls.status.textContent='';
+}
+
+// ---------- docx ----------
+function buildBodyOs25(){
+  const p=wProtDoc(), s=wSanzioni();
+  let b=HDR_XML+hairline(120,120,NAVY,8);
+  wDestList().forEach(x=>{
+    if(x.pc) b+=para({align:"right",after:20,indentLeft:3600}, run("e, p.c.",{i:1,sz:19}));
+    b+=para({align:"right",after:20,indentLeft:3600}, run(x.d.r1,{sz:21}));
+    b+=para({align:"right",after:20,indentLeft:3600}, run(x.d.r2,{b:1,sz:21}));
+    if(x.d.r3) b+=para({align:"right",after:20,indentLeft:3600}, run(x.d.r3,{i:1,sz:19}));
+    b+=para({align:"right",after:120,indentLeft:3000}, run("INDIRIZZO DI PROTOCOLLO "+x.d.prot,{sz:13,color:GREY}));
+  });
+  b+=protoTableN(p)+spacer(180);
+  b+=para({after:40}, run("O G G E T T O",{b:1,sz:16,color:NAVY,spacing:30}));
+  b+=hairline(20,20,NAVY,6);
+  b+=para({before:60,after:200,align:"both"}, run(wOggetto(),{b:1,sz:22}));
+  b+=para({align:"both",after:120,line:276}, run(wIntro(),{sz:22}));
+  b+=para({align:"both",after:120,line:276}, run(wAttivita(),{sz:22}));
+  b+=para({align:"both",after:s.gruppi.length?80:120,line:276}, run(s.frase,{sz:22}));
+  s.gruppi.forEach(g=>{
+    b+=para({before:60,after:40,indentLeft:260}, run("–  ",{sz:22,color:NAVY})+run(g.titolo,{sz:22}));
+    g.voci.forEach(v=>{ b+=para({after:40,indentLeft:620,align:"both",line:264}, run("⇒  ",{sz:22,color:NAVY})+run(v+" ;",{sz:22})); });
+  });
+  b+=para({before:120,after:120,align:"both",line:276}, run("Si resta a disposizione per eventuali ulteriori adempimenti o chiarimenti.",{sz:22}));
+  b+=para({after:120}, run("Cordialmente",{sz:22}));
+  b+=para({after:60}, run("Napoli, lì  "+wDataDoc(),{sz:21}));
+  b+=spacer(60);
+  b+=firmaRow(wEstLine(), RESP[wState.resp].role, RESP[wState.resp].nome);
+  return b;
+}
+function buildZipOs25(){ return packDocx(buildBodyOs25()); }
+
+// ---------- handlers ----------
+wEls.protNum.oninput=()=>{ wState.protNum=wEls.protNum.value; wBuildPreview(); };
+wEls.protData.onchange=()=>{ wState.protData=wEls.protData.value; wBuildPreview(); };
+wEls.dal.onchange=()=>{ wState.dal=wEls.dal.value; wBuildPreview(); wHints(); };
+wEls.al.onchange=()=>{ wState.al=wEls.al.value; wBuildPreview(); wHints(); };
+function wSposta(giorni){
+  const base=aParse(wState.dal)||aParse(W_INIZIO);
+  const lun=aAdd(wLunedi(base),giorni);
+  if(lun>aParse(W_FINE) || aAdd(lun,6)<aParse(W_INIZIO)) return;
+  const s=wSettimana(lun); wState.dal=s.dal; wState.al=s.al; wRender();
+}
+$("wPrev").onclick=()=>wSposta(-7);
+$("wNext").onclick=()=>wSposta(7);
+wEls.serv.oninput=()=>{ wState.serv=wEls.serv.value; wBuildPreview(); };
+wEls.servDet.oninput=()=>{ wState.servDet=wEls.servDet.value; wBuildPreview(); };
+wEls.pers.oninput=()=>{ wState.pers=wEls.pers.value; wBuildPreview(); };
+wEls.persDet.oninput=()=>{ wState.persDet=wEls.persDet.value; wBuildPreview(); };
+wEls.ctrl.oninput=()=>{ wState.ctrl=wEls.ctrl.value; wBuildPreview(); };
+wEls.addAltra.onclick=()=>{ wState.altre.push({desc:"",n:""}); wRender(); };
+wEls.pc.onchange=()=>{ wState.pc=wEls.pc.checked; wBuildPreview(); };
+wEls.dataInput.onchange=()=>{ wState.data=wEls.dataInput.value; wBuildPreview(); };
+$("wClearDate").onclick=()=>{ wState.data=""; wRender(); };
+wEls.estNome.oninput=()=>{ wState.estNome=wEls.estNome.value; wBuildPreview(); };
+wEls.estMatr.oninput=()=>{ wState.estMatr=wEls.estMatr.value; wBuildPreview(); };
+wEls.genBtn.onclick=async()=>{
+  try{
+    wEls.status.style.color='var(--mut)'; wEls.status.textContent='Generazione in corso…';
+    const zip=buildZipOs25();
+    const blob=await zip.generateAsync({type:"blob",mimeType:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url;
+    const per=(wState.dal&&wState.al)?("_"+wState.dal.split("-").reverse().join("-")+"_"+wState.al.split("-").reverse().join("-")):"";
+    a.download="Report_OS25_settimanale"+per+".docx";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1500);
+    wEls.status.style.color='var(--ok)'; wEls.status.textContent='✓ Word generato e scaricato.';
+  }catch(e){ wEls.status.style.color='#e06a6a'; wEls.status.textContent='Errore: '+e.message; }
 };
 
 // =====================================================================
@@ -3759,8 +4096,8 @@ iEls.genBtn.onclick=async()=>{
 };
 
 // ---------- tab switching ----------
-const PANES={v:$("tab-verbali"), o:$("tab-ord"), n:$("tab-notifiche"), r:$("tab-report"), m:$("tab-movida"), l:$("tab-locali"), t:$("tab-trasm"), c:$("tab-com"), g:$("tab-rel"), a:$("tab-aria"), i:$("tab-irr")};
-const TABS={v:$("tabBtnVerbali"), o:$("tabBtnOrd"), n:$("tabBtnNotifiche"), r:$("tabBtnReport"), m:$("tabBtnMovida"), l:$("tabBtnLocali"), t:$("tabBtnTrasm"), c:$("tabBtnCom"), g:$("tabBtnRel"), a:$("tabBtnAria"), i:$("tabBtnIrr")};
+const PANES={v:$("tab-verbali"), o:$("tab-ord"), n:$("tab-notifiche"), r:$("tab-report"), m:$("tab-movida"), l:$("tab-locali"), t:$("tab-trasm"), c:$("tab-com"), g:$("tab-rel"), a:$("tab-aria"), i:$("tab-irr"), w:$("tab-os25")};
+const TABS={v:$("tabBtnVerbali"), o:$("tabBtnOrd"), n:$("tabBtnNotifiche"), r:$("tabBtnReport"), m:$("tabBtnMovida"), l:$("tabBtnLocali"), t:$("tabBtnTrasm"), c:$("tabBtnCom"), g:$("tabBtnRel"), a:$("tabBtnAria"), i:$("tabBtnIrr"), w:$("tabBtnOs25")};
 function showTab(k){ for(const key in PANES){ PANES[key].hidden=(key!==k); TABS[key].classList.toggle('active',key===k); } }
 Object.keys(TABS).forEach(k=>{ TABS[k].onclick=()=>showTab(k); });
 
@@ -3774,6 +4111,7 @@ oRender();
 gRender();
 aRender();
 iRender();
+wRender();
 </script>
 </body>
 </html>
