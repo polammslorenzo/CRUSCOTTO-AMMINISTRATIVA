@@ -715,6 +715,11 @@
         </div>
 
         <div class="block">
+          <div class="blab">Destinatario (per il Word)</div>
+          <div class="ftiny" style="margin:0">Sempre: <b>Al Responsabile di Reparto · U.O. San Lorenzo · S.Ten. Alessandro AUTORE</b>. Altri uffici si aggiungono dal blocco «Altri destinatari» qui sotto.</div>
+        </div>
+
+        <div class="block">
           <div class="blab">Relazionanti (per il Word, max 4)</div>
           <div class="ftiny">Grado, cognome e nome, matricola — compaiono in calce, allineati a destra</div>
           <div id="cOperanti"></div>
@@ -2990,7 +2995,8 @@ function cRender(){
 
 // ---------- docx ----------
 function buildBodyComunicato(){
-  let b=HDR_XML+hairline(120,120,NAVY,8)+xDestXml('c')+spacer(160);
+  // il comunicato e' sempre indirizzato al Responsabile di Reparto (stessa intestazione delle Relazioni generiche)
+  let b=HDR_XML+hairline(120,120,NAVY,8)+xBlockXml(G_DEST.resp)+xDestXml('c')+spacer(160);
   b+=para({after:40}, run("O G G E T T O",{b:1,sz:16,color:NAVY,spacing:30}));
   b+=hairline(20,20,NAVY,6);
   b+=para({before:60,after:200,align:"both"}, run(cOggetto(),{b:1,sz:22}));
