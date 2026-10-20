@@ -1081,6 +1081,194 @@
 </div>
 
 <script>
+// =====================================================================
+// ============== RUBRICA E-GRAMMATA (condivisa da tutte le tab) =======
+// =====================================================================
+// Uffici con indirizzo di protocollo e-grammata. Gli uffici aggiunti a mano
+// (destinatari non censiti) restano salvati su questo computer e si possono
+// esportare/importare in CSV per passarli ai colleghi.
+const RUB_STORE = "amm20_rubrica_egrammata";
+const RUBRICA = [
+  { l1:"All'Area Sviluppo Socio Economico e Competitività", l2:"Servizio SUAP", prot:"11.11.0.0.0" },
+  { l1:"All'Area Sviluppo Socio Economico e Competitività", l2:"Servizio Mercati", prot:"11.1.0.0.0" },
+  { l1:"All'Area Ambiente", l2:"Servizio Tutela dell'Ambiente della Salute e del Paesaggio", prot:"14.17.0.0.0" },
+  { l1:"", l2:"Servizio Gestione Canoni e Altri Tributi", prot:"41.3.0.0.0" },
+  { l1:"Alla Municipalità 4", l2:"Unità Operativa Attività Tecniche", prot:"25.0.6.0.0" },
+  { l1:"All'Area Urbanistica", l2:"Servizio Sportello Unico Edilizia", prot:"9.4.0.0.0" },
+  { l1:"All'Area Urbanistica", l2:"Servizio Condono Edilizio", prot:"9.8.0.0.0" },
+  { l1:"Al Comandante", l2:"Servizio Polizia Locale", l3:"Gen. Ciro ESPOSITO", prot:"21.0.0.0.0" },
+  { l1:"Al Dirigente", l2:"Servizio Coordinamento Strategico Operativo", l3:"Col. Antonio VECCHIONE", prot:"21.65.0.0.0" },
+  { l1:"Al Responsabile", l2:"Ufficio Controllo di Gestione", prot:"21.13.1.0.0" },
+  { l1:"Alla", l2:"U.O. Controlli Interni e di Gestione", prot:"" },
+  { l1:"Al Responsabile di Reparto", l2:"U.O. San Lorenzo", l3:"S.Ten. Alessandro AUTORE", prot:"" },
+  { l1:"Al Comando Provinciale", l2:"Guardia di Finanza di Napoli", prot:"" }
+];
+function rubKey(d){ return ((d.l2||"")+"|"+(d.prot||"")).toLowerCase().replace(/\s+/g," ").trim(); }
+function rubFind(k){ return RUBRICA.find(d=>rubKey(d)===k); }
+function rubAdd(d){ // aggiunge un ufficio non censito; restituisce la sua chiave
+  const e={ l1:(d.l1||"").trim(), l2:(d.l2||"").trim(), l3:(d.l3||"").trim(), prot:(d.prot||"").trim().replace(/\.+$/,"") };
+  if(!e.l2) return null;
+  const k=rubKey(e); if(!rubFind(k)){ e.custom=true; RUBRICA.push(e); rubSave(); }
+  return k;
+}
+function rubSave(){ try{ localStorage.setItem(RUB_STORE, JSON.stringify(RUBRICA.filter(d=>d.custom).map(({l1,l2,l3,prot})=>({l1,l2,l3,prot})))); }catch(_){} }
+(function rubLoad(){ try{ (JSON.parse(localStorage.getItem(RUB_STORE)||"[]")||[]).forEach(d=>{ if(d && d.l2 && !rubFind(rubKey(d))) RUBRICA.push(Object.assign({custom:true},d)); }); }catch(_){} })();
+
+// Destinatari aggiuntivi scelti in ciascuna tab: { tab: {dest:[chiavi], pc:[chiavi]} }
+const X_SEL = {};
+function xSel(tab){ return X_SEL[tab] || (X_SEL[tab]={dest:[],pc:[]}); }
+function xList(tab,ruolo){ return xSel(tab)[ruolo].map(rubFind).filter(Boolean); }
+function xEsc(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function xBlockHtml(d){
+  return `<div style="margin-bottom:8px">${d.l1?`<div>${xEsc(d.l1)}</div>`:''}<div><b>${xEsc(d.l2)}</b></div>${d.l3?`<div style="font-style:italic">${xEsc(d.l3)}</div>`:''}${d.prot?`<div style="font-size:9px;color:#6B7280;letter-spacing:.04em">INDIRIZZO DI PROTOCOLLO ${xEsc(d.prot)}</div>`:''}</div>`;
+}
+// Anteprima: destinatari aggiuntivi e "e, p.c." (pcGia=true se la tab ha gia' stampato "e, p.c.")
+function xDestHtml(tab, pcGia){
+  const dd=xList(tab,"dest"), pc=xList(tab,"pc");
+  let h=dd.map(xBlockHtml).join('');
+  if(pc.length) h+=(pcGia?'':'<div style="margin:10px 0 6px;font-style:italic">e, p.c.</div>')+pc.map(xBlockHtml).join('');
+  return h;
+}
+function xBlockXml(d){
+  let s="";
+  if(d.l1) s+=para({align:"right",after:20,indentLeft:3600}, run(d.l1,{sz:21}));
+  s+=para({align:"right",after:(d.l3||d.prot)?20:120,indentLeft:3600}, run(d.l2,{b:1,sz:21}));
+  if(d.l3) s+=para({align:"right",after:d.prot?20:120,indentLeft:3600}, run(d.l3,{i:1,sz:19}));
+  if(d.prot) s+=para({align:"right",after:120,indentLeft:3000}, run("INDIRIZZO DI PROTOCOLLO "+d.prot,{sz:13,color:GREY}));
+  return s;
+}
+function xDestXml(tab, pcGia){
+  const dd=xList(tab,"dest"), pc=xList(tab,"pc");
+  let s=dd.map(xBlockXml).join('');
+  if(pc.length){ if(!pcGia) s+=para({align:"right",before:40,after:60,indentLeft:3600}, run("e, p.c.",{i:1,sz:20})); s+=pc.map(xBlockXml).join(''); }
+  return s;
+}
+
+// ---------- widget "Altri destinatari" inserito sopra il firmatario di ogni tab ----------
+const X_TABS = { v:"seg", o:"oSeg", n:"nSeg", r:"rSeg", m:"mSeg", l:"lSeg", c:"cSeg", g:"gVisto", w:"wSeg", a:"aSeg", i:"iSeg" };
+const X_REFRESH = { v:()=>buildPreview(), o:()=>oBuildPreview(), n:()=>nBuildPreview(), r:()=>rBuildPreview(), m:()=>mBuildPreview(),
+  l:()=>lBuildPreview(), c:()=>{}, g:()=>gBuildPreview(), w:()=>wBuildPreview(), a:()=>aBuildPreview(), i:()=>iBuildPreview() };
+const X_W = {};
+function xWidgetInit(tab){
+  const seg=document.getElementById(X_TABS[tab]); if(!seg) return;
+  const anchor=seg.closest('.block');
+  const w=document.createElement('div'); w.className='block';
+  w.innerHTML=`
+    <div class="blab">Altri destinatari · rubrica e-grammata</div>
+    <div class="ftiny">Uffici da aggiungere a quelli già previsti dal modello, come destinatari o per conoscenza</div>
+    <div class="x-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
+    <input type="text" class="x-q" placeholder="Cerca ufficio o indirizzo di protocollo (es. SUAP, 21.65)">
+    <div class="x-res" style="max-height:190px;overflow:auto;margin-top:6px;border:1px solid var(--line);border-radius:9px"></div>
+    <button class="cleardate x-newt">+ Destinatario non censito</button>
+    <div class="x-form" hidden style="margin-top:10px;border:1px solid var(--line);border-radius:9px;padding:12px">
+      <div class="ftiny">Intestazione (facolt., es. All'Area … / Al Dirigente …)</div><input type="text" class="x-l1" placeholder="All'Area …">
+      <div class="ftiny" style="margin-top:8px">Servizio / Ufficio</div><input type="text" class="x-l2" placeholder="Servizio …">
+      <div class="ftiny" style="margin-top:8px">Nominativo (facolt.)</div><input type="text" class="x-l3" placeholder="es. Dott. Mario ROSSI">
+      <div class="ftiny" style="margin-top:8px">Indirizzo di protocollo e-grammata (facolt.)</div><input type="text" class="x-prot" placeholder="es. 21.65.0.0.0">
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="gen x-adddest" style="padding:9px;flex:1">Aggiungi come destinatario</button>
+        <button class="gen x-addpc" style="padding:9px;flex:1">Aggiungi per conoscenza</button>
+      </div>
+      <div class="ftiny" style="margin-top:6px">L’ufficio resta salvato nella rubrica di questo computer e compare in tutte le tab.</div>
+    </div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap">
+      <button class="cleardate x-exp">⇩ Esporta rubrica (CSV)</button>
+      <label class="cleardate" style="cursor:pointer">⇧ Importa rubrica (CSV / Excel)<input type="file" class="x-imp" accept=".csv,.xlsx" hidden></label>
+    </div>
+    <div class="ftiny x-msg" style="margin-top:6px"></div>`;
+  anchor.parentNode.insertBefore(w, anchor);
+  const q=(c)=>w.querySelector(c);
+  X_W[tab]={ w, chips:q('.x-chips'), res:q('.x-res'), q:q('.x-q'), form:q('.x-form'), msg:q('.x-msg') };
+  q('.x-q').oninput=()=>xRenderList(tab);
+  q('.x-newt').onclick=()=>{ X_W[tab].form.hidden=!X_W[tab].form.hidden; };
+  const nuovo=(ruolo)=>{
+    const k=rubAdd({ l1:q('.x-l1').value, l2:q('.x-l2').value, l3:q('.x-l3').value, prot:q('.x-prot').value });
+    if(!k){ xMsg(tab,"Indica almeno il Servizio/Ufficio.",true); return; }
+    ['.x-l1','.x-l2','.x-l3','.x-prot'].forEach(c=>q(c).value='');
+    X_W[tab].form.hidden=true;
+    xToggle(tab,k,ruolo,true); xRefreshAll(); xMsg(tab,"✓ Aggiunto alla rubrica.");
+  };
+  q('.x-adddest').onclick=()=>nuovo("dest");
+  q('.x-addpc').onclick=()=>nuovo("pc");
+  q('.x-exp').onclick=()=>xExport(tab);
+  q('.x-imp').onchange=async(e)=>{ const f=e.target.files[0]; e.target.value=""; if(f) await xImport(tab,f); };
+  xRender(tab);
+}
+function xMsg(tab,t,err){ const m=X_W[tab]&&X_W[tab].msg; if(!m) return; m.style.color=err?'#e0b341':'var(--ok)'; m.textContent=t; }
+function xToggle(tab,k,ruolo,forza){
+  const s=xSel(tab), altro=ruolo==="dest"?"pc":"dest";
+  const on=s[ruolo].includes(k);
+  if(on && !forza) s[ruolo]=s[ruolo].filter(x=>x!==k);
+  else if(!on){ s[ruolo].push(k); s[altro]=s[altro].filter(x=>x!==k); }
+}
+function xRenderChips(tab){
+  const W=X_W[tab]; if(!W) return;
+  const s=xSel(tab), items=[...s.dest.map(k=>["dest",k]), ...s.pc.map(k=>["pc",k])].filter(([,k])=>rubFind(k));
+  W.chips.innerHTML=items.map(([r,k])=>{ const d=rubFind(k); return `<span class="chip" title="${xEsc(d.l1)}"><b>${r==="pc"?"p.c.":"Dest."}</b> ${xEsc(d.l2)}${d.prot?" · "+xEsc(d.prot):""}<span class="x" data-r="${r}" data-k="${xEsc(k)}">✕</span></span>`; }).join('');
+  W.chips.querySelectorAll('.x').forEach(el=>el.onclick=()=>{ xToggle(tab,el.dataset.k,el.dataset.r); xRender(tab); X_REFRESH[tab](); });
+}
+function xRenderList(tab){
+  const W=X_W[tab]; if(!W) return;
+  const t=W.q.value.trim().toLowerCase(), s=xSel(tab);
+  const lista=RUBRICA.filter(d=>!t || [d.l1,d.l2,d.l3,d.prot].join(" ").toLowerCase().includes(t));
+  const btn=(on,lab)=>`style="cursor:pointer;font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid ${on?'var(--accent)':'var(--line)'};background:${on?'var(--fill)':'transparent'};color:${on?'#cfe2f7':'var(--mut)'};font-family:inherit">${lab}`;
+  W.res.innerHTML = lista.length ? lista.map(d=>{ const k=rubKey(d), od=s.dest.includes(k), op=s.pc.includes(k);
+    return `<div style="display:flex;gap:8px;align-items:center;padding:7px 10px;border-bottom:1px solid var(--line)">
+      <div style="flex:1;font-size:12.5px;line-height:1.35">${xEsc(d.l2)}<div class="ftiny" style="margin:0">${xEsc([d.l1,d.l3].filter(Boolean).join(" · "))}${d.prot?" · prot. "+xEsc(d.prot):""}${d.custom?' · <i>aggiunto</i>':''}</div></div>
+      <button class="x-bd" data-k="${xEsc(k)}" ${btn(od,"Dest.")}</button>
+      <button class="x-bp" data-k="${xEsc(k)}" ${btn(op,"p.c.")}</button>
+      ${d.custom?`<span class="x-del" data-k="${xEsc(k)}" title="Elimina dalla rubrica" style="cursor:pointer;color:var(--mut);font-weight:700">✕</span>`:''}
+    </div>`; }).join('') : `<div class="ftiny" style="padding:10px;margin:0">Nessun ufficio trovato: aggiungilo con «+ Destinatario non censito».</div>`;
+  W.res.querySelectorAll('.x-bd').forEach(el=>el.onclick=()=>{ xToggle(tab,el.dataset.k,"dest"); xRender(tab); X_REFRESH[tab](); });
+  W.res.querySelectorAll('.x-bp').forEach(el=>el.onclick=()=>{ xToggle(tab,el.dataset.k,"pc"); xRender(tab); X_REFRESH[tab](); });
+  W.res.querySelectorAll('.x-del').forEach(el=>el.onclick=()=>{ const d=rubFind(el.dataset.k); if(d && confirm("Eliminare «"+d.l2+"» dalla rubrica di questo computer?")) xDelete(el.dataset.k); });
+}
+function xRender(tab){ xRenderChips(tab); xRenderList(tab); }
+function xRefreshAll(){
+  Object.keys(X_W).forEach(t=>{ xRender(t); X_REFRESH[t](); });
+  if(typeof tRender==="function" && typeof tState!=="undefined") tRender();
+}
+function xDelete(k){
+  const i=RUBRICA.findIndex(d=>rubKey(d)===k && d.custom); if(i<0) return;
+  // la tab Trasmissioni lavora per posizione: ricalcola le selezioni dopo la rimozione
+  const tk=(typeof tState!=="undefined")?{sel:tState.sel.map(j=>rubKey(RUBRICA[j]||{})), pc:tState.selPc.map(j=>rubKey(RUBRICA[j]||{}))}:null;
+  RUBRICA.splice(i,1); rubSave();
+  Object.values(X_SEL).forEach(s=>{ s.dest=s.dest.filter(x=>x!==k); s.pc=s.pc.filter(x=>x!==k); });
+  if(tk){ const idx=(kk)=>RUBRICA.findIndex(d=>rubKey(d)===kk); tState.sel=tk.sel.filter(x=>x!==k).map(idx).filter(j=>j>=0); tState.selPc=tk.pc.filter(x=>x!==k).map(idx).filter(j=>j>=0); }
+  xRefreshAll();
+}
+function xExport(tab){
+  const righe=[["intestazione","ufficio","nominativo","protocollo"], ...RUBRICA.map(d=>[d.l1||"",d.l2||"",d.l3||"",d.prot||""])];
+  const csv="﻿"+righe.map(r=>r.map(v=>/[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v).join(";")).join("\r\n");
+  const url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
+  const a=document.createElement('a'); a.href=url; a.download="rubrica_egrammata.csv"; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+  xMsg(tab,"✓ Rubrica esportata ("+RUBRICA.length+" uffici).");
+}
+function xCsvRows(text){ // CSV con ; o , e campi tra virgolette
+  const sep=(text.split(/\r?\n/)[0].match(/;/g)||[]).length>=(text.split(/\r?\n/)[0].match(/,/g)||[]).length?";":",";
+  const rows=[]; let r=[], f="", q=false;
+  for(let i=0;i<text.length;i++){ const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){ f+='"'; i++; } else q=false; } else f+=c; }
+    else if(c==='"') q=true; else if(c===sep){ r.push(f); f=""; } else if(c==="\n"){ r.push(f.replace(/\r$/,"")); rows.push(r); r=[]; f=""; } else f+=c; }
+  if(f||r.length){ r.push(f); rows.push(r); }
+  return rows.filter(x=>x.some(v=>String(v).trim()));
+}
+async function xImport(tab,f){
+  try{
+    const rows=/\.xlsx$/i.test(f.name) ? await iReadXlsx(await f.arrayBuffer()) : xCsvRows((await f.text()).replace(/^﻿/,""));
+    if(!rows.length) throw new Error("file vuoto");
+    const h=rows[0].map(x=>String(x).toLowerCase());
+    const col=(re)=>h.findIndex(x=>re.test(x));
+    let c2=col(/uffic|servizio|denominaz|descriz/), c1=col(/intestaz/), c3=col(/nominativ|responsab|dirigente|referente/), cp=col(/protocoll|codice|e-?grammata/);
+    let dati=rows.slice(1);
+    if(c2<0){ c1=0; c2=1; c3=2; cp=3; dati=rows; } // senza intestazione: intestazione;ufficio;nominativo;protocollo
+    let n=0;
+    dati.forEach(r=>{ const g=(j)=>j>=0?String(r[j]||"").trim():""; const before=RUBRICA.length; if(rubAdd({l1:g(c1),l2:g(c2),l3:g(c3),prot:g(cp)}) && RUBRICA.length>before) n++; });
+    xRefreshAll(); xMsg(tab,"✓ Importati "+n+" nuovi uffici ("+RUBRICA.length+" in rubrica).");
+  }catch(e){ xMsg(tab,"Errore importazione: "+e.message,true); }
+}
+
 // ===== DATA =====
 const VOCI = {
   suap:{
@@ -1230,7 +1418,7 @@ function buildPreview(){
       <div><b>Prot. n.</b> ${protDoc().num==="___________"?'<span class="muted">___________</span>':'<b>'+protDoc().num+'</b>'} &nbsp;&nbsp;<b>del</b> ${protDoc().date.includes("_")?'<span class="muted">__/__/____</span>':'<b>'+protDoc().date+'</b>'}</div>
       <div><b>Allegati:</b> report riepilogativo ·&nbsp; cartella zip con copia dei verbali di accertamento</div>
     </div></div>
-    <div class="dest">${dest}</div>
+    <div class="dest">${dest}${xDestHtml('v')}</div>
     <div class="ogg-label">O&nbsp;G&nbsp;G&nbsp;E&nbsp;T&nbsp;T&nbsp;O</div>
     <hr class="ogg-rule">
     <div class="ogg-title">Comunicazione di avvenuti accertamenti ai fini commerciali con contestuale trasmissione del report riepilogativo e dei verbali di violazione elevati.</div>
@@ -1344,6 +1532,7 @@ function firmaTable(r){
 function buildBody(sel,r,dataStr,est,prot){
   let b=HDR_XML+hairline(120,120,NAVY,8)+protoTable(prot)+spacer(140);
   sel.forEach(k=> b+=para({align:"right",after:80,indentLeft:3000}, run(VOCI[k].dest,{sz:21,b:1})) );
+  b+=xDestXml('v');
   b+=para({before:120,after:40}, run("O G G E T T O",{b:1,sz:16,color:NAVY,spacing:30}));
   b+=hairline(20,20,NAVY,6);
   b+=para({before:60,after:200,align:"both"}, run("Comunicazione di avvenuti accertamenti ai fini commerciali con contestuale trasmissione del report riepilogativo e dei verbali di violazione elevati.",{b:1,sz:22}));
@@ -1555,7 +1744,7 @@ function nBuildPreview(){
       <img class="logoimg" src="data:image/png;base64,${IMG2_B64}" alt="Logo P.M.">
     </div>
     <hr class="rule">
-    <div class="dest" style="margin-top:14px">${destLines}</div>
+    <div class="dest" style="margin-top:14px">${destLines}${xDestHtml('n')}</div>
     <div class="proto" style="margin-top:12px"><div class="bar"></div><div class="pcontent">
       <div>${p.num==="___________"?'<b>Prot. n.</b> <span class="muted">___________</span>':'<b>Prot. n.</b> <b>'+p.num+'</b>'} &nbsp;&nbsp;<b>del</b> ${p.date.includes("_")?'<span class="muted">__/__/____</span>':'<b>'+p.date+'</b>'}</div>
     </div></div>
@@ -1612,6 +1801,7 @@ function buildBodyNotifica(){
   b+=para({align:"right",after:20,indentLeft:3600}, run(d.area||"…",{sz:21}));
   b+=para({align:"right",after: d.prot?20:120,indentLeft:3600}, run(d.serv||"…",{b:1,sz:21}));
   if(d.prot) b+=para({align:"right",after:120,indentLeft:3600}, run("Indirizzo di protocollo "+d.prot,{i:1,sz:17,color:GREY}));
+  b+=xDestXml('n');
   b+=protoTableN(p)+spacer(180);
   b+=para({before:0,after:40}, run("O G G E T T O",{b:1,sz:16,color:NAVY,spacing:30}));
   b+=hairline(20,20,NAVY,6);
@@ -1797,7 +1987,7 @@ function rBuildPreview(){
       <img class="logoimg" src="data:image/png;base64,${IMG2_B64}" alt="Logo P.M.">
     </div>
     <hr class="rule">
-    <div class="dest" style="margin-top:14px">${rDestHtml()}</div>
+    <div class="dest" style="margin-top:14px">${rDestHtml()}${xDestHtml('r')}</div>
     <div class="proto" style="margin-top:12px"><div class="bar"></div><div class="pcontent">
       <div>${p.num==="___________"?'<b>Prot. n.</b> <span class="muted">___________</span>':'<b>Prot. n.</b> <b>'+p.num+'</b>'} &nbsp;&nbsp;<b>del</b> ${p.date.includes("_")?'<span class="muted">__/__/____</span>':'<b>'+p.date+'</b>'}</div>
     </div></div>
@@ -1841,6 +2031,7 @@ function buildBodyReport(){
     b+=para({align:"right",after:20,indentLeft:3600}, run(d.r3,{i:1,sz:19}));
     b+=para({align:"right",after:120,indentLeft:3000}, run("INDIRIZZO DI PROTOCOLLO "+d.prot,{sz:13,color:GREY}));
   });
+  b+=xDestXml('r');
   b+=protoTableN(p)+spacer(180);
   b+=para({after:40}, run("O G G E T T O",{b:1,sz:16,color:NAVY,spacing:30}));
   b+=hairline(20,20,NAVY,6);
@@ -1951,7 +2142,7 @@ function mBuildPreview(){
       <img class="logoimg" src="data:image/png;base64,${IMG2_B64}" alt="Logo P.M.">
     </div>
     <hr class="rule">
-    <div class="dest" style="margin-top:14px">${rDestHtml()}</div>
+    <div class="dest" style="margin-top:14px">${rDestHtml()}${xDestHtml('m')}</div>
     <div class="proto" style="margin-top:12px"><div class="bar"></div><div class="pcontent">
       <div>${p.num==="___________"?'<b>Prot. n.</b> <span class="muted">___________</span>':'<b>Prot. n.</b> <b>'+p.num+'</b>'} &nbsp;&nbsp;<b>del</b> ${p.date.includes("_")?'<span class="muted">__/__/____</span>':'<b>'+p.date+'</b>'}</div>
     </div></div>
@@ -1996,6 +2187,7 @@ function buildBodyMovida(){
     b+=para({align:"right",after:20,indentLeft:3600}, run(d.r3,{i:1,sz:19}));
     b+=para({align:"right",after:120,indentLeft:3000}, run("INDIRIZZO DI PROTOCOLLO "+d.prot,{sz:13,color:GREY}));
   });
+  b+=xDestXml('m');
   b+=protoTableN(p)+spacer(180);
   b+=para({after:40}, run("O G G E T T O",{b:1,sz:16,color:NAVY,spacing:30}));
   b+=hairline(20,20,NAVY,6);
@@ -2116,7 +2308,7 @@ function lBuildPreview(){
       <img class="logoimg" src="data:image/png;base64,${IMG2_B64}" alt="Logo P.M.">
     </div>
     <hr class="rule">
-    <div class="dest" style="margin-top:14px">${lDestHtml()}</div>
+    <div class="dest" style="margin-top:14px">${lDestHtml()}${xDestHtml('l')}</div>
     <div class="proto" style="margin-top:12px"><div class="bar"></div><div class="pcontent">
       <div>${p.num==="___________"?'<b>Prot. n.</b> <span class="muted">___________</span>':'<b>Prot. n.</b> <b>'+p.num+'</b>'} &nbsp;&nbsp;<b>del</b> ${p.date.includes("_")?'<span class="muted">__/__/____</span>':'<b>'+p.date+'</b>'}</div>
     </div></div>
@@ -2153,6 +2345,7 @@ function buildBodyLocali(){
     b+=para({align:"right",after:20,indentLeft:3600}, run(d.r1,{sz:21}));
     b+=para({align:"right",after:120,indentLeft:3600}, run(d.r2,{b:1,sz:21}));
   });
+  b+=xDestXml('l');
   b+=protoTableN(p)+spacer(180);
   b+=para({after:40}, run("O G G E T T O",{b:1,sz:16,color:NAVY,spacing:30}));
   b+=hairline(20,20,NAVY,6);
@@ -2246,18 +2439,8 @@ async function aiRequest(payload){
   if(!out) throw new Error("risposta vuota");
   return out;
 }
-// Rubrica estratta da suolo_pubblico.html (uffici + indirizzi di protocollo)
-let T_RUBRICA = [
-  { l1:"All'Area Sviluppo Socio Economico e Competitivit\u00E0", l2:"Servizio SUAP", prot:"11.11.0.0.0" },
-  { l1:"All'Area Sviluppo Socio Economico e Competitivit\u00E0", l2:"Servizio Mercati", prot:"11.1.0.0.0" },
-  { l1:"All'Area Ambiente", l2:"Servizio Tutela dell'Ambiente della Salute e del Paesaggio", prot:"14.17.0.0.0" },
-  { l1:"", l2:"Servizio Gestione Canoni e Altri Tributi", prot:"41.3.0.0.0" },
-  { l1:"Alla Municipalit\u00E0 4", l2:"Unit\u00E0 Operativa Attivit\u00E0 Tecniche", prot:"25.0.6.0.0" },
-  { l1:"All'Area Urbanistica", l2:"Servizio Sportello Unico Edilizia", prot:"9.4.0.0.0" },
-  { l1:"All'Area Urbanistica", l2:"Servizio Condono Edilizio", prot:"9.8.0.0.0" },
-  { l1:"Al Comandante", l2:"Servizio Polizia Locale", l3:"Gen. Ciro ESPOSITO", prot:"21.0.0.0.0" },
-  { l1:"Al Dirigente", l2:"Servizio Coordinamento Strategico Operativo", l3:"Col. Antonio VECCHIONE", prot:"21.65.0.0.0" }
-];
+// Rubrica condivisa (RUBRICA, in cima allo script): stessi uffici in tutte le tab
+let T_RUBRICA = RUBRICA;
 
 let tState = { sel:[0], selPc:[], rifProt:"", rifData:"", rifOgg:"", corpo:"", alleg:"",
   protNum:"", protData:"", resp:"autore", data:"", estNome:"Armando Ferrara", estMatr:"" };
@@ -2499,8 +2682,11 @@ tEls.addToggle.onclick=()=>{ tEls.addWrap.hidden=!tEls.addWrap.hidden; };
 tEls.addBtn.onclick=()=>{
   const l2=tEls.addL2.value.trim();
   if(!l2){ tEls.status.style.color='#e0b341'; tEls.status.textContent='Indica almeno il Servizio/Ufficio.'; return; }
-  T_RUBRICA.push({ l1:tEls.addL1.value.trim(), l2, l3:tEls.addL3.value.trim(), prot:tEls.addProt.value.trim() });
-  tState.sel=[...tState.sel, T_RUBRICA.length-1];
+  const k=rubAdd({ l1:tEls.addL1.value, l2, l3:tEls.addL3.value, prot:tEls.addProt.value });
+  const j=T_RUBRICA.findIndex(d=>rubKey(d)===k);
+  if(j>=0 && !tState.sel.includes(j)) tState.sel=[...tState.sel, j].sort((x,y)=>x-y);
+  tState.selPc=tState.selPc.filter(x=>x!==j);
+  Object.keys(X_W).forEach(xRenderList);
   tEls.addL1.value=''; tEls.addL2.value=''; tEls.addL3.value=''; tEls.addProt.value='';
   tEls.addWrap.hidden=true;
   tRender();
@@ -2699,7 +2885,7 @@ function cRender(){
 
 // ---------- docx ----------
 function buildBodyComunicato(){
-  let b=HDR_XML+hairline(120,120,NAVY,8)+spacer(160);
+  let b=HDR_XML+hairline(120,120,NAVY,8)+xDestXml('c')+spacer(160);
   b+=para({after:40}, run("O G G E T T O",{b:1,sz:16,color:NAVY,spacing:30}));
   b+=hairline(20,20,NAVY,6);
   b+=para({before:60,after:200,align:"both"}, run(cOggetto(),{b:1,sz:22}));
@@ -2941,7 +3127,7 @@ function oBuildPreview(){
       <img class="logoimg" src="data:image/png;base64,${IMG2_B64}" alt="Logo P.M.">
     </div>
     <hr class="rule">
-    <div class="dest" style="margin-top:14px"><div>${ORD_DEST.l1}</div><div><b>${ORD_DEST.l2}</b></div><div style="font-size:9px;color:#6B7280;letter-spacing:.04em">INDIRIZZO DI PROTOCOLLO ${ORD_DEST.prot}</div></div>
+    <div class="dest" style="margin-top:14px"><div>${ORD_DEST.l1}</div><div><b>${ORD_DEST.l2}</b></div><div style="font-size:9px;color:#6B7280;letter-spacing:.04em">INDIRIZZO DI PROTOCOLLO ${ORD_DEST.prot}</div>${xDestHtml('o')}</div>
     <div class="proto" style="margin-top:12px"><div class="bar"></div><div class="pcontent">
       <div>${p.num==="___________"?'<b>Prot. n.</b> <span class="muted">___________</span>':'<b>Prot. n.</b> <b>'+p.num+'</b>'} &nbsp;&nbsp;<b>del</b> ${p.date.includes("_")?'<span class="muted">__/__/____</span>':'<b>'+p.date+'</b>'}</div>
       <div><b>Allegati:</b> copia ${oState.righe.length===1?"del verbale":"dei verbali"} di accertamento</div>
@@ -2979,6 +3165,7 @@ function buildBodyOrd(){
   b+=para({align:"right",after:20,indentLeft:3600}, run(ORD_DEST.l1,{sz:21}));
   b+=para({align:"right",after:20,indentLeft:3600}, run(ORD_DEST.l2,{b:1,sz:21}));
   b+=para({align:"right",after:120,indentLeft:3000}, run("INDIRIZZO DI PROTOCOLLO "+ORD_DEST.prot,{sz:13,color:GREY}));
+  b+=xDestXml('o');
   const numRun = p.num==="___________" ? run(p.num,{sz:19,color:GREY}) : run(p.num,{b:1,sz:19,color:"333333"});
   const dateRun = p.date==="____ / ____ / ________" ? run(p.date,{sz:19,color:GREY}) : run(p.date,{b:1,sz:19,color:"333333"});
   const side=`<w:tc><w:tcPr><w:tcW w:w="120" w:type="dxa"/>${noTcB}<w:shd w:val="clear" w:fill="${NAVY}"/></w:tcPr>${para({},run("",{sz:2}))}</w:tc>`;
@@ -3131,7 +3318,7 @@ function gBuildPreview(){
       <img class="logoimg" src="data:image/png;base64,${IMG2_B64}" alt="Logo P.M.">
     </div>
     <hr class="rule">
-    <div class="dest" style="margin-top:14px">${d.l1?`<div>${d.l1}</div>`:''}${d.l2?`<div><b>${d.l2}</b></div>`:''}${d.l3?`<div style="font-style:italic">${d.l3}</div>`:''}${d.prot?`<div style="font-size:9px;color:#6B7280;letter-spacing:.04em">INDIRIZZO DI PROTOCOLLO ${d.prot}</div>`:''}</div>
+    <div class="dest" style="margin-top:14px">${d.l1?`<div>${d.l1}</div>`:''}${d.l2?`<div><b>${d.l2}</b></div>`:''}${d.l3?`<div style="font-style:italic">${d.l3}</div>`:''}${d.prot?`<div style="font-size:9px;color:#6B7280;letter-spacing:.04em">INDIRIZZO DI PROTOCOLLO ${d.prot}</div>`:''}${xDestHtml('g')}</div>
     <div class="proto" style="margin-top:12px"><div class="bar"></div><div class="pcontent">
       <div>${p.num==="___________"?'<b>Prot. n.</b> <span class="muted">___________</span>':'<b>Prot. n.</b> <b>'+p.num+'</b>'} &nbsp;&nbsp;<b>del</b> ${p.date.includes("_")?'<span class="muted">__/__/____</span>':'<b>'+p.date+'</b>'}</div>
       ${gState.alleg.trim()?`<div><b>Allegati:</b> ${gState.alleg.trim()}</div>`:''}
@@ -3185,6 +3372,7 @@ function buildBodyRel(){
   if(d.l2) b+=para({align:"right",after:20,indentLeft:3600}, run(d.l2,{b:1,sz:21}));
   if(d.l3) b+=para({align:"right",after:20,indentLeft:3600}, run(d.l3,{i:1,sz:19}));
   b+=para({align:"right",after:120,indentLeft:3000}, d.prot?run("INDIRIZZO DI PROTOCOLLO "+d.prot,{sz:13,color:GREY}):run("",{sz:2}));
+  b+=xDestXml('g');
   const numRun = p.num==="___________" ? run(p.num,{sz:19,color:GREY}) : run(p.num,{b:1,sz:19,color:"333333"});
   const dateRun = p.date==="____ / ____ / ________" ? run(p.date,{sz:19,color:GREY}) : run(p.date,{b:1,sz:19,color:"333333"});
   const side=`<w:tc><w:tcPr><w:tcW w:w="120" w:type="dxa"/>${noTcB}<w:shd w:val="clear" w:fill="${NAVY}"/></w:tcPr>${para({},run("",{sz:2}))}</w:tc>`;
@@ -3356,7 +3544,7 @@ function aBuildPreview(){
       <div>${p.num==="___________"?'<b>Prot. n.</b> <span class="muted">___________</span>':'<b>Prot. n.</b> <b>'+h(p.num)+'</b>'} &nbsp;&nbsp;<b>del</b> ${p.date.includes("_")?'<span class="muted">__/__/____</span>':'<b>'+p.date+'</b>'}</div>
     </div></div>
     <div class="data" style="text-align:right">${aDataDoc()}</div>
-    <div class="dest" style="margin-top:14px">${rDestHtml()}</div>
+    <div class="dest" style="margin-top:14px">${rDestHtml()}${xDestHtml('a')}</div>
     <div class="ogg-label" style="margin-top:16px">O&nbsp;G&nbsp;G&nbsp;E&nbsp;T&nbsp;T&nbsp;O</div>
     <hr class="ogg-rule">
     <div class="ogg-title">${h(aOggetto())}</div>
@@ -3404,6 +3592,7 @@ function buildBodyAria(){
     b+=para({align:"right",after:20,indentLeft:3600}, run(d.r3,{i:1,sz:19}));
     b+=para({align:"right",after:120,indentLeft:3000}, run("INDIRIZZO DI PROTOCOLLO "+d.prot,{sz:13,color:GREY}));
   });
+  b+=xDestXml('a');
   b+=spacer(120);
   b+=para({after:40}, run("O G G E T T O",{b:1,sz:16,color:NAVY,spacing:30}));
   b+=hairline(20,20,NAVY,6);
@@ -3517,7 +3706,13 @@ function wSanzioni(){ // {frase, gruppi:[{titolo, voci:[]}]}
   if(al.length) g.push({ titolo:"altre violazioni accertate (n. "+wTotAltre()+"):", voci:al.map(a=>"n. "+wN(a.n)+" per "+a.desc.trim()) });
   return { frase:"All’esito dei controlli "+(tot===1?"è stata elevata n. 1 sanzione":"sono state elevate complessivamente n. "+tot+" sanzioni")+", così suddivise per tipologia:", gruppi:g };
 }
-function wDestList(){ const l=[{d:W_DEST,pc:false}]; if(wState.pc) l.push({d:W_PC,pc:true}); return l; }
+function wDestList(){
+  const r=(d)=>({r1:d.l1||"", r2:d.l2, r3:d.l3||"", prot:d.prot||""});
+  const l=[{d:W_DEST,pc:false}, ...xList("w","dest").map(d=>({d:r(d),pc:false}))];
+  const pc=[...(wState.pc?[W_PC]:[]), ...xList("w","pc").map(r)];
+  pc.forEach((d,i)=>l.push({d, pc:true, primo:i===0}));
+  return l;
+}
 
 // ---------- preview ----------
 function wBuildSeg(){
@@ -3562,7 +3757,7 @@ function wHints(){
 }
 function wBuildPreview(){
   const p=wProtDoc(), h=(s)=>esc(String(s)), s=wSanzioni();
-  const dest=wDestList().map(x=>`${x.pc?'<div style="font-style:italic;margin-top:4px">e, p.c.</div>':''}<div style="margin-bottom:8px"><div>${x.d.r1}</div><div><b>${x.d.r2}</b></div>${x.d.r3?`<div style="font-style:italic">${x.d.r3}</div>`:''}<div style="font-size:9px;color:#6B7280;letter-spacing:.04em">INDIRIZZO DI PROTOCOLLO ${x.d.prot}</div></div>`).join('');
+  const dest=wDestList().map(x=>`${x.primo?'<div style="font-style:italic;margin-top:4px">e, p.c.</div>':''}<div style="margin-bottom:8px">${x.d.r1?`<div>${xEsc(x.d.r1)}</div>`:''}<div><b>${xEsc(x.d.r2)}</b></div>${x.d.r3?`<div style="font-style:italic">${xEsc(x.d.r3)}</div>`:''}${x.d.prot?`<div style="font-size:9px;color:#6B7280;letter-spacing:.04em">INDIRIZZO DI PROTOCOLLO ${xEsc(x.d.prot)}</div>`:''}</div>`).join('');
   wEls.page.innerHTML=`
     <div class="pg-head">
       <img class="logoimg" src="data:image/png;base64,${IMG1_B64}" alt="Stemma">
@@ -3614,11 +3809,11 @@ function buildBodyOs25(){
   const p=wProtDoc(), s=wSanzioni();
   let b=HDR_XML+hairline(120,120,NAVY,8);
   wDestList().forEach(x=>{
-    if(x.pc) b+=para({align:"right",after:20,indentLeft:3600}, run("e, p.c.",{i:1,sz:19}));
-    b+=para({align:"right",after:20,indentLeft:3600}, run(x.d.r1,{sz:21}));
+    if(x.primo) b+=para({align:"right",after:20,indentLeft:3600}, run("e, p.c.",{i:1,sz:19}));
+    if(x.d.r1) b+=para({align:"right",after:20,indentLeft:3600}, run(x.d.r1,{sz:21}));
     b+=para({align:"right",after:20,indentLeft:3600}, run(x.d.r2,{b:1,sz:21}));
     if(x.d.r3) b+=para({align:"right",after:20,indentLeft:3600}, run(x.d.r3,{i:1,sz:19}));
-    b+=para({align:"right",after:120,indentLeft:3000}, run("INDIRIZZO DI PROTOCOLLO "+x.d.prot,{sz:13,color:GREY}));
+    b+=para({align:"right",after:120,indentLeft:3000}, x.d.prot?run("INDIRIZZO DI PROTOCOLLO "+x.d.prot,{sz:13,color:GREY}):run("",{sz:2}));
   });
   b+=protoTableN(p)+spacer(180);
   b+=para({after:40}, run("O G G E T T O",{b:1,sz:16,color:NAVY,spacing:30}));
@@ -3982,7 +4177,7 @@ function iBuildPreview(){
       <img class="logoimg" src="data:image/png;base64,${IMG2_B64}" alt="Logo P.M.">
     </div>
     <hr class="rule">
-    <div class="dest" style="margin-top:14px"><div>${I_DEST.r1}</div><div><b>${I_DEST.r2}</b></div><div>${I_DEST.r3}</div>${iState.ca.trim()?`<div style="font-style:italic">c.a. ${h(iState.ca.trim())}</div>`:''}<div style="font-size:9px;color:#6B7280;letter-spacing:.04em">INDIRIZZO DI PROTOCOLLO ${I_DEST.prot}</div></div>
+    <div class="dest" style="margin-top:14px"><div>${I_DEST.r1}</div><div><b>${I_DEST.r2}</b></div><div>${I_DEST.r3}</div>${iState.ca.trim()?`<div style="font-style:italic">c.a. ${h(iState.ca.trim())}</div>`:''}<div style="font-size:9px;color:#6B7280;letter-spacing:.04em">INDIRIZZO DI PROTOCOLLO ${I_DEST.prot}</div>${xDestHtml('i')}</div>
     <div class="proto" style="margin-top:12px"><div class="bar"></div><div class="pcontent">
       <div>${p.num==="___________"?'<b>Prot. n.</b> <span class="muted">___________</span>':'<b>Prot. n.</b> <b>'+h(p.num)+'</b>'} &nbsp;&nbsp;<b>del</b> ${p.date.includes("_")?'<span class="muted">__/__/____</span>':'<b>'+p.date+'</b>'}</div>
       ${al?`<div><b>Allegati:</b> ${h(al)}</div>`:''}
@@ -4024,6 +4219,7 @@ function buildBodyIrr(){
   b+=para({align:"right",after:20,indentLeft:3600}, run(I_DEST.r3,{sz:21}));
   if(iState.ca.trim()) b+=para({align:"right",after:20,indentLeft:3600}, run("c.a. "+iState.ca.trim(),{i:1,sz:19}));
   b+=para({align:"right",after:120,indentLeft:3000}, run("INDIRIZZO DI PROTOCOLLO "+I_DEST.prot,{sz:13,color:GREY}));
+  b+=xDestXml('i');
   const numRun = p.num==="___________" ? run(p.num,{sz:19,color:GREY}) : run(p.num,{b:1,sz:19,color:"333333"});
   const dateRun = p.date==="____ / ____ / ________" ? run(p.date,{sz:19,color:GREY}) : run(p.date,{b:1,sz:19,color:"333333"});
   const side=`<w:tc><w:tcPr><w:tcW w:w="120" w:type="dxa"/>${noTcB}<w:shd w:val="clear" w:fill="${NAVY}"/></w:tcPr>${para({},run("",{sz:2}))}</w:tc>`;
@@ -4112,6 +4308,7 @@ gRender();
 aRender();
 iRender();
 wRender();
+Object.keys(X_TABS).forEach(xWidgetInit);
 </script>
 </body>
 </html>
