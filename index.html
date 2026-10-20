@@ -755,7 +755,7 @@
   </div><!-- /tab-com -->
 
   <div id="tab-rel" class="tabpane" hidden>
-    <p class="sub">Relazioni di servizio generiche — oggetto e corpo liberi, firme fino a 4 operanti come nei modelli di riscontro esposti / occupazione suolo.</p>
+    <p class="sub">Relazioni di servizio generiche al Responsabile — oggetto e corpo liberi; i relazionanti (fino a 4) compaiono in calce a destra, senza spazi per la firma a penna.</p>
     <div class="grid">
       <!-- CONTROLS RELAZIONI -->
       <div class="card">
@@ -792,8 +792,8 @@
         </div>
 
         <div class="block">
-          <div class="blab">Firme operanti (max 4)</div>
-          <div class="ftiny">Grado, cognome e nome, matricola — firma a penna sulla copia stampata</div>
+          <div class="blab">Relazionanti (max 4)</div>
+          <div class="ftiny">Grado, cognome e nome, matricola — compaiono in calce, allineati a destra</div>
           <div id="gOperanti"></div>
           <button class="cleardate" id="gAddOp">+ Aggiungi operante</button>
         </div>
@@ -804,12 +804,6 @@
             <div class="f-grow"><div class="ftiny">Prot. n.</div><input type="text" id="gProtNum" placeholder="es. PG/2026/000000"></div>
             <div class="f-matr"><div class="ftiny">del</div><input type="date" id="gProtData" style="padding:10px 8px"></div>
           </div>
-        </div>
-
-        <div class="block">
-          <div class="blab">Visto del Responsabile</div>
-          <div class="seg" id="gVisto"></div>
-          <div id="gSegWrap"><div class="ftiny" style="margin-top:10px">Firmatario</div><div class="seg" id="gSeg"></div></div>
         </div>
 
         <div class="block">
@@ -1199,7 +1193,7 @@ function xDestXml(tab, pcGia){
 }
 
 // ---------- widget "Altri destinatari" inserito sopra il firmatario di ogni tab ----------
-const X_TABS = { v:"seg", o:"oSeg", n:"nSeg", r:"rSeg", m:"mSeg", l:"lSeg", c:"cSeg", g:"gVisto", w:"wSeg", a:"aSeg", i:"iSeg" };
+const X_TABS = { v:"seg", o:"oSeg", n:"nSeg", r:"rSeg", m:"mSeg", l:"lSeg", c:"cSeg", g:"gDataInput", w:"wSeg", a:"aSeg", i:"iSeg" };
 const X_REFRESH = { v:()=>buildPreview(), o:()=>oBuildPreview(), n:()=>nBuildPreview(), r:()=>rBuildPreview(), m:()=>mBuildPreview(),
   l:()=>lBuildPreview(), c:()=>{}, g:()=>gBuildPreview(), w:()=>wBuildPreview(), a:()=>aBuildPreview(), i:()=>iBuildPreview() };
 const X_W = {};
@@ -3294,13 +3288,13 @@ const G_DEST = {
 let gState = { dest:"resp", cL1:"", cL2:"", cL3:"", cProt:"",
   ogg:"", rif:"", corpo:"", alleg:"",
   operanti:[{grado:"A.C.", nome:"", matr:""}],
-  protNum:"", protData:"", visto:true, resp:"autore", data:"", estNome:"Armando Ferrara", estMatr:"" };
+  protNum:"", protData:"", data:"", estNome:"Armando Ferrara", estMatr:"" };
 
 const gEls = {
   dest:$("gDest"), cWrap:$("gCustomWrap"), cL1:$("gcL1"), cL2:$("gcL2"), cL3:$("gcL3"), cProt:$("gcProt"),
   ogg:$("gOgg"), rif:$("gRif"), corpo:$("gCorpo"), aiBtn:$("gAiBtn"), alleg:$("gAlleg"),
   operanti:$("gOperanti"), addOp:$("gAddOp"),
-  protNum:$("gProtNum"), protData:$("gProtData"), visto:$("gVisto"), segWrap:$("gSegWrap"), seg:$("gSeg"),
+  protNum:$("gProtNum"), protData:$("gProtData"),
   dataInput:$("gDataInput"), estNome:$("gEstNome"), estMatr:$("gEstMatr"),
   page:$("gPage"), genBtn:$("gGenBtn"), status:$("gStatus")
 };
@@ -3343,37 +3337,10 @@ function gBuildOperanti(){
   gEls.operanti.querySelectorAll('.g-del').forEach(el=>el.onclick=()=>{ gState.operanti.splice(+el.dataset.i,1); gRender(); });
   gEls.addOp.style.display = gState.operanti.length>=4 ? 'none' : '';
 }
-function gBuildVisto(){
-  gEls.visto.innerHTML='';
-  [[true,"Con visto del Responsabile","firma digitale in calce"],[false,"Senza visto","firmano solo gli operanti"]].forEach(([v,t,s])=>{
-    const on=gState.visto===v;
-    const el=document.createElement('div');
-    el.className='opt2'+(on?' on':'');
-    el.innerHTML=`<div class="radio"></div><div class="lab2">${t}<small>${s}</small></div>`;
-    el.onclick=()=>{ gState.visto=v; gRender(); };
-    gEls.visto.appendChild(el);
-  });
-  gEls.segWrap.hidden=!gState.visto;
-}
-function gBuildSeg(){
-  gEls.seg.innerHTML='';
-  Object.keys(RESP_MENU).forEach(k=>{
-    const r=RESP_MENU[k], on=gState.resp===k;
-    const el=document.createElement('div');
-    el.className='opt2'+(on?' on':'');
-    el.innerHTML=`<div class="radio"></div><div class="lab2">${r.titolo}<small>${r.ruolo}</small></div>`;
-    el.onclick=()=>{ gState.resp=k; gRender(); };
-    gEls.seg.appendChild(el);
-  });
-}
 function gBuildPreview(){
   const p=gProtDoc(), d=gDestObj(), paras=gParagrafi(), ops=gOpList();
   const corpoHtml = paras.length ? paras.map(x=>`<div class="body-p">${x}</div>`).join('') : `<div class="body-p" style="color:#999;font-style:italic">— corpo della relazione —</div>`;
-  const opsHtml = ops.length ? `
-    <div style="margin-top:22px;text-align:center;color:#1A3A6B;font-weight:700;font-size:11px;letter-spacing:.12em">I&nbsp;R E L A Z I O N A N T I</div>
-    <div style="display:flex;flex-wrap:wrap;gap:10px 24px;margin-top:26px">
-      ${ops.map(o=>`<div style="flex:1 1 42%;text-align:center"><div style="border-top:1.2px solid #333;margin-bottom:3px"></div><div style="font-style:italic;color:#6B7280;font-size:10px">${gOpLabel(o)}</div></div>`).join('')}
-    </div>` : '';
+  const opsHtml = ops.length ? ops.map(o=>`<div class="nm">${xEsc(((o.grado||"").trim()+" "+o.nome.trim()).trim())}${(o.matr||"").trim()?`<span style="color:#6B7280;font-weight:400;font-size:10px">  \u00B7  matr. ${xEsc(o.matr.trim())}</span>`:''}</div>`).join('') : '';
   gEls.page.innerHTML=`
     <div class="pg-head">
       <img class="logoimg" src="data:image/png;base64,${IMG1_B64}" alt="Stemma">
@@ -3396,19 +3363,18 @@ function gBuildPreview(){
     <div class="ogg-title">${gOggetto()}</div>
     ${corpoHtml}
     <div class="data">Napoli, lì ${gDataDoc()}</div>
-    ${opsHtml}
-    ${gState.visto?`<div class="sig-row">
+    <div class="sig-row">
       <div class="est-l">${gEstLine()}</div>
-      <div class="firm-r">
-        <div class="role">${RESP[gState.resp].role}</div>
-        <div class="nm">${RESP[gState.resp].nome}</div>
-        <div class="disc">Firma autografa ai sensi dell\u2019art. 3 D.Lgs. 39/93</div>
+      <div class="firm-r">${ops.length?`
+        <div class="role">${gRuoloRel()}</div>
+        ${opsHtml}
+        <div class="disc">Firma autografa ai sensi dell\u2019art. 3 D.Lgs. 39/93</div>`:''}
       </div>
-    </div>`:`<hr class="est-rule"><div class="est">${gEstLine()}</div>`}
+    </div>
   `;
 }
 function gRender(){
-  gBuildDest(); gBuildOperanti(); gBuildVisto(); gBuildSeg(); gBuildPreview();
+  gBuildDest(); gBuildOperanti(); gBuildPreview();
   gEls.cL1.value=gState.cL1; gEls.cL2.value=gState.cL2; gEls.cL3.value=gState.cL3; gEls.cProt.value=gState.cProt;
   gEls.ogg.value=gState.ogg; gEls.rif.value=gState.rif; gEls.corpo.value=gState.corpo; gEls.alleg.value=gState.alleg;
   gEls.protNum.value=gState.protNum; gEls.protData.value=gState.protData;
@@ -3417,21 +3383,22 @@ function gRender(){
 }
 
 // ---------- docx ----------
+function gRuoloRel(){ return gOpList().length===1 ? "Il relazionante" : "I relazionanti"; }
+// in calce: estensore a sinistra, relazionanti a destra come il blocco firma del Responsabile (niente righe per la firma a penna)
 function gFirmeOperanti(){
   const ops=gOpList();
-  if(!ops.length) return "";
-  let out=para({before:200,after:200,align:"center"}, run("I  R E L A Z I O N A N T I",{b:1,sz:18,color:NAVY,spacing:16}));
-  const cell=(o)=>{
-    if(!o) return `<w:tc><w:tcPr><w:tcW w:w="4680" w:type="dxa"/>${noTcB}</w:tcPr>${para({},run("",{sz:2}))}</w:tc>`;
-    return `<w:tc><w:tcPr><w:tcW w:w="4680" w:type="dxa"/>${noTcB}${mar(60,120,120,120)}</w:tcPr>`+
-      para({after:300},run("",{sz:2}))+
-      para({align:"center",after:20,topBorder:{sz:6,color:"333333"}},run("",{sz:2}))+
-      para({align:"center"},run(gOpLabel(o),{i:1,sz:15,color:GREY}))+`</w:tc>`;
-  };
-  for(let i=0;i<ops.length;i+=2){
-    out+=`<w:tbl><w:tblPr><w:tblW w:w="${CW}" w:type="dxa"/>${NOB}<w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid><w:gridCol w:w="4680"/><w:gridCol w:w="4680"/></w:tblGrid><w:tr>${cell(ops[i])}${cell(ops[i+1])}</w:tr></w:tbl>`;
+  const left=`<w:tc><w:tcPr><w:tcW w:w="4680" w:type="dxa"/>${noTcB}${mar(120,0,0,0)}<w:vAlign w:val="top"/></w:tcPr>`+
+    para({}, run(gEstLine(),{i:1,sz:15,color:GREY}))+`</w:tc>`;
+  let destra=para({},run("",{sz:2}));
+  if(ops.length){
+    destra=para({align:"right",after:20},run(gRuoloRel(),{i:1,sz:18,color:"333333"}))+
+      ops.map(o=>para({align:"right",after:20},
+        run(((o.grado||"").trim()+" "+o.nome.trim()).trim(),{b:1,sz:20,color:NAVY})+
+        ((o.matr||"").trim()?run("  \u00B7  matr. "+o.matr.trim(),{sz:15,color:GREY}):""))).join("")+
+      para({align:"right"},run("Firma autografa ai sensi dell\u2019art. 3 D.Lgs. 39/93",{i:1,sz:14,color:GREY}));
   }
-  return out;
+  const right=`<w:tc><w:tcPr><w:tcW w:w="4680" w:type="dxa"/>${noTcB}<w:vAlign w:val="top"/></w:tcPr>`+destra+`</w:tc>`;
+  return `<w:tbl><w:tblPr><w:tblW w:w="${CW}" w:type="dxa"/>${NOB}<w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid><w:gridCol w:w="4680"/><w:gridCol w:w="4680"/></w:tblGrid><w:tr>${left}${right}</w:tr></w:tbl>`;
 }
 function buildBodyRel(){
   const p=gProtDoc(), d=gDestObj();
@@ -3453,14 +3420,8 @@ function buildBodyRel(){
   const paras=gParagrafi();
   (paras.length?paras:["\u2026"]).forEach(x=>{ b+=para({align:"both",after:120,line:276,indentFirst:480}, run(x,{sz:22})); });
   b+=para({before:120,after:60}, run("Napoli, l\u00EC  "+gDataDoc(),{sz:21}));
+  b+=spacer(60);
   b+=gFirmeOperanti();
-  if(gState.visto){
-    b+=spacer(60);
-    b+=firmaRow(gEstLine(), RESP[gState.resp].role, RESP[gState.resp].nome);
-  } else {
-    b+=hairline(200,0,HAIR,4);
-    b+=para({before:20}, run(gEstLine(),{i:1,sz:15,color:GREY}));
-  }
   return b;
 }
 function buildZipRel(){ return packDocx(buildBodyRel()); }
