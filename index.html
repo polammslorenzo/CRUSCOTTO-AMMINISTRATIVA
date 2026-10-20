@@ -1098,7 +1098,7 @@ const RUBRICA = [
   { l1:"All'Area Urbanistica", l2:"Servizio Condono Edilizio", prot:"9.8.0.0.0" },
   { l1:"Al Comandante", l2:"Servizio Polizia Locale", l3:"Gen. Ciro ESPOSITO", prot:"21.0.0.0.0" },
   { l1:"Al Dirigente", l2:"Servizio Coordinamento Strategico Operativo", l3:"Col. Antonio VECCHIONE", prot:"21.65.0.0.0" },
-  { l1:"Al Responsabile", l2:"Ufficio Controllo di Gestione", prot:"21.13.1.0.0" },
+  { l1:"All'Area Sicurezza\nServizio Polizia Locale\nU.O. Affari Generali e Controllo Interno", l2:"Ufficio Controllo di Gestione", prot:"21.13.1.0.0" },
   { l1:"Alla", l2:"U.O. Controlli Interni e di Gestione", prot:"" },
   { l1:"Al Responsabile di Reparto", l2:"U.O. San Lorenzo", l3:"S.Ten. Alessandro AUTORE", prot:"" },
   { l1:"Al Comando Provinciale", l2:"Guardia di Finanza di Napoli", prot:"" }
@@ -1119,8 +1119,9 @@ const X_SEL = {};
 function xSel(tab){ return X_SEL[tab] || (X_SEL[tab]={dest:[],pc:[]}); }
 function xList(tab,ruolo){ return xSel(tab)[ruolo].map(rubFind).filter(Boolean); }
 function xEsc(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function xRighe(t){ return String(t||"").split("\n").map(x=>x.trim()).filter(Boolean); }
 function xBlockHtml(d){
-  return `<div style="margin-bottom:8px">${d.l1?`<div>${xEsc(d.l1)}</div>`:''}<div><b>${xEsc(d.l2)}</b></div>${d.l3?`<div style="font-style:italic">${xEsc(d.l3)}</div>`:''}${d.prot?`<div style="font-size:9px;color:#6B7280;letter-spacing:.04em">INDIRIZZO DI PROTOCOLLO ${xEsc(d.prot)}</div>`:''}</div>`;
+  return `<div style="margin-bottom:8px">${xRighe(d.l1).map(x=>`<div>${xEsc(x)}</div>`).join('')}<div><b>${xEsc(d.l2)}</b></div>${d.l3?`<div style="font-style:italic">${xEsc(d.l3)}</div>`:''}${d.prot?`<div style="font-size:9px;color:#6B7280;letter-spacing:.04em">INDIRIZZO DI PROTOCOLLO ${xEsc(d.prot)}</div>`:''}</div>`;
 }
 // Anteprima: destinatari aggiuntivi e "e, p.c." (pcGia=true se la tab ha gia' stampato "e, p.c.")
 function xDestHtml(tab, pcGia){
@@ -1131,7 +1132,7 @@ function xDestHtml(tab, pcGia){
 }
 function xBlockXml(d){
   let s="";
-  if(d.l1) s+=para({align:"right",after:20,indentLeft:3600}, run(d.l1,{sz:21}));
+  xRighe(d.l1).forEach(x=>{ s+=para({align:"right",after:20,indentLeft:3600}, run(x,{sz:21})); });
   s+=para({align:"right",after:(d.l3||d.prot)?20:120,indentLeft:3600}, run(d.l2,{b:1,sz:21}));
   if(d.l3) s+=para({align:"right",after:d.prot?20:120,indentLeft:3600}, run(d.l3,{i:1,sz:19}));
   if(d.prot) s+=para({align:"right",after:120,indentLeft:3000}, run("INDIRIZZO DI PROTOCOLLO "+d.prot,{sz:13,color:GREY}));
@@ -3641,7 +3642,7 @@ aEls.genBtn.onclick=async()=>{
 // Richiesto con nota PG/2026/1120594 del 19/10/2026 (Servizio C.S.O.): ogni
 // lunedi' del periodo di vigenza, all'Ufficio Controllo di Gestione.
 const W_NOTA = "PG/2026/1120594 del 19/10/2026";
-const W_DEST = { r1:"Al Responsabile", r2:"Ufficio Controllo di Gestione", r3:"", prot:"21.13.1.0.0" };
+const W_DEST = { r1:"All'Area Sicurezza\nServizio Polizia Locale\nU.O. Affari Generali e Controllo Interno", r2:"Ufficio Controllo di Gestione", r3:"", prot:"21.13.1.0.0" };
 const W_PC = REPORT_DEST[1]; // Dirigente Servizio Coordinamento Strategico Operativo
 const W_OS = ORDINANZE.os25;
 const W_INIZIO = W_OS.dal, W_FINE = W_OS.al;
@@ -3662,7 +3663,7 @@ function wPeriodoDefault(){
 }
 const W_PER0 = wPeriodoDefault();
 let wState = { protNum:"", protData:"", dal:W_PER0.dal, al:W_PER0.al, serv:"", servDet:"", pers:"", persDet:"", ctrl:"",
-  sanzOs:["","","",""], altre:[], pc:true, resp:"autore", data:"", estNome:"Armando Ferrara", estMatr:"" };
+  sanzOs:["","","",""], altre:[], pc:false, resp:"autore", data:"", estNome:"Armando Ferrara", estMatr:"" };
 
 const wEls = {
   protNum:$("wProtNum"), protData:$("wProtData"), dal:$("wDal"), al:$("wAl"), perHint:$("wPerHint"),
@@ -3757,7 +3758,7 @@ function wHints(){
 }
 function wBuildPreview(){
   const p=wProtDoc(), h=(s)=>esc(String(s)), s=wSanzioni();
-  const dest=wDestList().map(x=>`${x.primo?'<div style="font-style:italic;margin-top:4px">e, p.c.</div>':''}<div style="margin-bottom:8px">${x.d.r1?`<div>${xEsc(x.d.r1)}</div>`:''}<div><b>${xEsc(x.d.r2)}</b></div>${x.d.r3?`<div style="font-style:italic">${xEsc(x.d.r3)}</div>`:''}${x.d.prot?`<div style="font-size:9px;color:#6B7280;letter-spacing:.04em">INDIRIZZO DI PROTOCOLLO ${xEsc(x.d.prot)}</div>`:''}</div>`).join('');
+  const dest=wDestList().map(x=>`${x.primo?'<div style="font-style:italic;margin-top:4px">e, p.c.</div>':''}<div style="margin-bottom:8px">${xRighe(x.d.r1).map(r=>`<div>${xEsc(r)}</div>`).join('')}<div><b>${xEsc(x.d.r2)}</b></div>${x.d.r3?`<div style="font-style:italic">${xEsc(x.d.r3)}</div>`:''}${x.d.prot?`<div style="font-size:9px;color:#6B7280;letter-spacing:.04em">INDIRIZZO DI PROTOCOLLO ${xEsc(x.d.prot)}</div>`:''}</div>`).join('');
   wEls.page.innerHTML=`
     <div class="pg-head">
       <img class="logoimg" src="data:image/png;base64,${IMG1_B64}" alt="Stemma">
@@ -3810,7 +3811,7 @@ function buildBodyOs25(){
   let b=HDR_XML+hairline(120,120,NAVY,8);
   wDestList().forEach(x=>{
     if(x.primo) b+=para({align:"right",after:20,indentLeft:3600}, run("e, p.c.",{i:1,sz:19}));
-    if(x.d.r1) b+=para({align:"right",after:20,indentLeft:3600}, run(x.d.r1,{sz:21}));
+    xRighe(x.d.r1).forEach(r=>{ b+=para({align:"right",after:20,indentLeft:3600}, run(r,{sz:21})); });
     b+=para({align:"right",after:20,indentLeft:3600}, run(x.d.r2,{b:1,sz:21}));
     if(x.d.r3) b+=para({align:"right",after:20,indentLeft:3600}, run(x.d.r3,{i:1,sz:19}));
     b+=para({align:"right",after:120,indentLeft:3000}, x.d.prot?run("INDIRIZZO DI PROTOCOLLO "+x.d.prot,{sz:13,color:GREY}):run("",{sz:2}));
